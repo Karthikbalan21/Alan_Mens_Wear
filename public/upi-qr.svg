@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">UPI QR code</title>
+  <desc id="desc">QR code image for UPI payment</desc>
+  <rect width="240" height="240" fill="#ffffff"/>
+  <rect x="14" y="14" width="56" height="56" fill="#101620"/>
+  <rect x="24" y="24" width="36" height="36" fill="#ffffff"/>
+  <rect x="32" y="32" width="20" height="20" fill="#101620"/>
+  <rect x="170" y="14" width="56" height="56" fill="#101620"/>
+  <rect x="180" y="24" width="36" height="36" fill="#ffffff"/>
+  <rect x="188" y="32" width="20" height="20" fill="#101620"/>
+  <rect x="14" y="170" width="56" height="56" fill="#101620"/>
+  <rect x="24" y="180" width="36" height="36" fill="#ffffff"/>
+  <rect x="32" y="188" width="20" height="20" fill="#101620"/>
+  <path fill="#101620" d="M92 18h14v14H92zm28 0h14v14h-14zm28 0h14v28h-14zM92 46h28v14H92zm42 14h14v14h-14zM78 78h14v14H78zm28 0h42v14h-42zm56 0h14v28h-14zM92 106h14v14H92zm28 0h14v28h-14zm42 14h28v14h-28zm-84 28h28v14H78zm42 0h14v14h-14zm28 0h14v28h-14zm42 0h28v14h-28zM92 176h14v14H92zm28 0h28v14h-28zm56 0h14v14h-14zm28 0h14v28h-14zM78 204h14v14H78zm28 0h42v14h-42zm56 0h28v14h-28z"/>
+  <text x="120" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#d6b26d">UPI</text>
+</svg>
