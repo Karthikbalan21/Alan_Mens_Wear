@@ -26,7 +26,7 @@ const company = {
   instagram: '@alanmenswear',
 }
 
-const formatCurrency = (amount) => `₹ ${Number(amount || 0).toLocaleString('en-IN')}`
+const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-IN')}`
 
 const formatDate = (value) => {
   const date = value?.toDate?.() || value || new Date()
