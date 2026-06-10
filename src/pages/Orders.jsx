@@ -70,7 +70,7 @@ function Orders() {
                   <h2>{order.status}</h2>
                   <span>{formatOrderDate(order)}</span>
                 </div>
-                <strong>INR {Number(order.totalAmount).toLocaleString('en-IN')}</strong>
+                <strong>₹ {Number(order.totalAmount).toLocaleString('en-IN')}</strong>
               </div>
 
               <ul className="order-items">

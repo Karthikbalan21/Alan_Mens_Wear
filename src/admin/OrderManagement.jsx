@@ -80,7 +80,7 @@ function OrderManagement() {
                   <strong>{order.customerName}</strong>
                   <span className="table-subtext">{order.customerEmail}</span>
                 </td>
-                <td>INR {Number(order.totalAmount).toLocaleString('en-IN')}</td>
+                <td>₹ {Number(order.totalAmount).toLocaleString('en-IN')}</td>
                 <td>{formatOrderDate(order)}</td>
                 <td>
                   {order.payment?.screenshotUrl ? (

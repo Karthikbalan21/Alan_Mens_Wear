@@ -331,7 +331,7 @@ function AdminDashboard() {
                     </td>
                     <td>{product.name}</td>
                     <td>{product.category}</td>
-                    <td>INR {Number(product.price).toLocaleString('en-IN')}</td>
+                    <td>₹ {Number(product.price).toLocaleString('en-IN')}</td>
                     <td>{product.stock}</td>
                     <td>
                       <div className="table-actions">

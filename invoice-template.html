@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALAN MENS WEAR - Invoice</title>
+  <style>
+    :root {
+      --black: #080b0f;
+      --navy: #121922;
+      --gold: #c58a32;
+      --gold-light: #f2d49a;
+      --white: #ffffff;
+      --ink: #121722;
+      --muted: #647084;
+      --line: #e6e9ef;
+      --card: #ffffff;
+      --soft-gold: #fff8ec;
+      --shadow: 0 24px 70px rgba(12, 17, 24, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #f4f6f8;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 32px));
+      margin: 32px auto;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .action-btn {
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 18px;
+      color: var(--white);
+      background: var(--black);
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .action-btn.gold {
+      color: var(--black);
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px rgba(12, 17, 24, 0.18);
+    }
+
+    .invoice {
+      overflow: hidden;
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .invoice-header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 32px;
+      padding: 42px 54px;
+      color: var(--white);
+      background:
+        radial-gradient(circle at 20% 0%, rgba(197, 138, 50, 0.2), transparent 34%),
+        linear-gradient(135deg, var(--black), var(--navy) 58%, #080b0f);
+      border-bottom: 6px solid var(--gold);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .logo-mark {
+      width: 96px;
+      height: 96px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(242, 212, 154, 0.48);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .logo-mark svg {
+      width: 74px;
+      height: 74px;
+    }
+
+    .brand-text strong {
+      display: block;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.4rem, 6vw, 4.6rem);
+      line-height: 0.9;
+      letter-spacing: 0;
+    }
+
+    .brand-text span {
+      display: block;
+      margin-top: 8px;
+      color: var(--gold-light);
+      font-size: clamp(0.9rem, 2vw, 1.3rem);
+      font-weight: 900;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+    }
+
+    .brand-text small {
+      display: block;
+      margin-top: 8px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    .invoice-title {
+      min-width: 280px;
+      border-left: 1px solid rgba(255, 255, 255, 0.28);
+      padding-left: 48px;
+      text-align: center;
+    }
+
+    .invoice-title h1 {
+      margin: 0;
+      color: var(--white);
+      font-size: clamp(2.4rem, 6vw, 4.7rem);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .invoice-title span {
+      display: inline-block;
+      width: 92px;
+      height: 3px;
+      margin-top: 18px;
+      background: var(--gold);
+    }
+
+    .invoice-body {
+      padding: 46px 54px 36px;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 390px);
+      gap: 32px;
+      align-items: stretch;
+      margin-bottom: 42px;
+    }
+
+    .customer-card {
+      display: grid;
+      gap: 18px;
+    }
+
+    .detail-item {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+    }
+
+    .detail-icon {
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--gold-light);
+      border-radius: 50%;
+      color: var(--gold);
+      background: var(--soft-gold);
+    }
+
+    .detail-icon svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .detail-copy span {
+      display: block;
+      color: var(--ink);
+      font-size: 1.15rem;
+      font-weight: 900;
+    }
+
+    .detail-copy strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--ink);
+      font-size: 1.05rem;
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+
+    .thanks-card {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      min-height: 170px;
+      border: 1px solid var(--gold-light);
+      border-radius: 14px;
+      padding: 28px;
+      background:
+        radial-gradient(circle at 0 0, rgba(197, 138, 50, 0.14), transparent 40%),
+        #fffaf2;
+    }
+
+    .bag-badge {
+      width: 94px;
+      height: 94px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 2px solid var(--gold);
+      border-radius: 50%;
+      color: var(--gold);
+    }
+
+    .bag-badge svg {
+      width: 44px;
+      height: 44px;
+    }
+
+    .thanks-card p {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+      line-height: 1.28;
+    }
+
+    .thanks-card strong {
+      font-weight: 900;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 620px;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      padding: 20px 24px;
+      color: var(--white);
+      background: linear-gradient(135deg, var(--black), var(--navy));
+      font-size: 1.02rem;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    thead th:nth-child(2),
+    tbody td:nth-child(2) {
+      text-align: center;
+    }
+
+    thead th:last-child,
+    tbody td:last-child {
+      text-align: right;
+    }
+
+    tbody tr {
+      border-bottom: 1px dashed #d5dae2;
+      transition: background 180ms ease;
+    }
+
+    tbody tr:hover {
+      background: #fff8ec;
+    }
+
+    tbody td {
+      padding: 24px;
+      color: var(--ink);
+      font-size: 1.05rem;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: flex-end;
+      margin: 26px 0 52px;
+    }
+
+    .total-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: min(520px, 100%);
+      overflow: hidden;
+      border: 1px solid var(--gold-light);
+      border-radius: 8px;
+      box-shadow: 0 18px 32px rgba(197, 138, 50, 0.16);
+    }
+
+    .total-box span,
+    .total-box strong {
+      display: grid;
+      min-height: 74px;
+      place-items: center;
+      padding: 0 18px;
+      font-size: clamp(1.1rem, 3vw, 1.75rem);
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .total-box span {
+      background: #fff7e8;
+    }
+
+    .total-box strong {
+      color: var(--white);
+      background: linear-gradient(135deg, #d39a40, #a46b18);
+    }
+
+    .footer {
+      border-top: 1px solid var(--gold-light);
+      padding-top: 32px;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+      text-align: center;
+    }
+
+    .footer-card {
+      min-height: 132px;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      border-right: 1px solid var(--line);
+      padding: 0 20px;
+    }
+
+    .footer-card:last-child {
+      border-right: 0;
+    }
+
+    .footer-card svg {
+      width: 28px;
+      height: 28px;
+      margin: 0 auto 4px;
+      color: var(--gold);
+    }
+
+    .footer-card strong {
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .footer-card span {
+      color: var(--ink);
+    }
+
+    .final-note {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 34px;
+      color: var(--ink);
+      font-size: 1.15rem;
+      text-align: center;
+    }
+
+    .final-note::before,
+    .final-note::after {
+      content: "";
+      width: min(210px, 20vw);
+      height: 1px;
+      background: var(--gold-light);
+    }
+
+    @media (max-width: 860px) {
+      .invoice-header,
+      .details-grid,
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .invoice-header {
+        padding: 32px 24px;
+      }
+
+      .invoice-title {
+        min-width: 0;
+        border-left: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.22);
+        padding: 28px 0 0;
+        text-align: left;
+      }
+
+      .invoice-body {
+        padding: 32px 24px;
+      }
+
+      .footer-card {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 22px;
+      }
+
+      .footer-card:last-child {
+        border-bottom: 0;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .page {
+        width: min(100% - 20px, 1120px);
+        margin: 16px auto;
+      }
+
+      .toolbar {
+        flex-direction: column;
+      }
+
+      .action-btn {
+        width: 100%;
+      }
+
+      .brand {
+        align-items: flex-start;
+      }
+
+      .logo-mark {
+        width: 74px;
+        height: 74px;
+        border-radius: 14px;
+      }
+
+      .logo-mark svg {
+        width: 56px;
+        height: 56px;
+      }
+
+      .detail-item {
+        grid-template-columns: 48px minmax(0, 1fr);
+      }
+
+      .detail-icon {
+        width: 48px;
+        height: 48px;
+      }
+
+      .thanks-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .total-box {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: var(--white);
+      }
+
+      .page {
+        width: 100%;
+        margin: 0;
+      }
+
+      .toolbar {
+        display: none;
+      }
+
+      .invoice {
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="toolbar">
+      <button class="action-btn" type="button" onclick="window.print()">Print Invoice</button>
+      <button class="action-btn gold" type="button" onclick="window.print()">Download PDF</button>
+    </div>
+
+    <section class="invoice">
+      <header class="invoice-header">
+        <div class="brand">
+          <div class="logo-mark" aria-hidden="true">
+            <svg viewBox="0 0 120 120" role="img">
+              <path d="M60 9c-15 0-27 12-27 27v8c0 15 12 27 27 27s27-12 27-27v-8C87 21 75 9 60 9Z" fill="#f8fafc" />
+              <path d="M31 72 14 114h92L89 72l-23 41-6-37-6 37L31 72Z" fill="#f8fafc" />
+              <path d="M31 72 53 114H14Z" fill="#c58a32" />
+              <path d="M89 72 67 114h39Z" fill="#dce2ea" />
+              <path d="M40 30c10-12 29-14 42-4M41 39c13-6 26-6 39 0" fill="none" stroke="#10161d" stroke-linecap="round" stroke-width="5" />
+              <path d="M47 69h26L60 80Z" fill="#10161d" />
+              <path d="M47 63h26v11H47Z" fill="#c58a32" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <strong>ALAN</strong>
+            <span>Mens Wear</span>
+            <small>Dress better. Feel confident.</small>
+          </div>
+        </div>
+
+        <div class="invoice-title">
+          <h1>Invoice</h1>
+          <span></span>
+        </div>
+      </header>
+
+      <div class="invoice-body">
+        <section class="details-grid" aria-label="Customer details">
+          <div class="customer-card">
+            <article class="detail-item">
+              <div class="detail-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                  <path d="M14 2v6h6" />
+                  <path d="M8 13h8" />
+                  <path d="M8 17h6" />
+                </svg>
+              </div>
+              <div class="detail-copy">
+                <span>Order ID</span>
+                <strong>GwMuvTzkSbuL9UJeCwu2</strong>
+              </div>
+            </article>
+
+            <article class="detail-item">
+              <div class="detail-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21a8 8 0 0 0-16 0" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <div class="detail-copy">
+                <span>Customer Name</span>
+                <strong>karthik</strong>
+              </div>
+            </article>
+
+            <article class="detail-item">
+              <div class="detail-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M8 2v4" />
+                  <path d="M16 2v4" />
+                  <rect width="18" height="18" x="3" y="4" rx="2" />
+                  <path d="M3 10h18" />
+                </svg>
+              </div>
+              <div class="detail-copy">
+                <span>Date</span>
+                <strong>10/6/2026</strong>
+              </div>
+            </article>
+          </div>
+
+          <aside class="thanks-card">
+            <div class="bag-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 7h12l1 14H5Z" />
+                <path d="M9 7a3 3 0 0 1 6 0" />
+              </svg>
+            </div>
+            <p>Thank you<br />for shopping with<br /><strong>Alan Mens Wear.</strong></p>
+          </aside>
+        </section>
+
+        <section class="table-wrap" aria-label="Invoice products">
+          <table>
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>Qty</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Adidas Shorts</td>
+                <td>1</td>
+                <td>INR 149</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="total-row" aria-label="Invoice total">
+          <div class="total-box">
+            <span>Total Amount</span>
+            <strong>INR 149</strong>
+          </div>
+        </section>
+
+        <footer class="footer">
+          <div class="footer-grid">
+            <article class="footer-card">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z" />
+              </svg>
+              <strong>Alan Mens Wear</strong>
+              <span>Mumbai, Maharashtra, India</span>
+            </article>
+
+            <article class="footer-card">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24 11.36 11.36 0 0 0 3.58.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.36 11.36 0 0 0 .57 3.58 1 1 0 0 1-.24 1.01l-2.21 2.2Z" />
+              </svg>
+              <span>+91 98765 43210</span>
+              <span>support@alanmenswear.com</span>
+            </article>
+
+            <article class="footer-card">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12h20" />
+                <path d="M12 2a15.3 15.3 0 0 1 0 20" />
+                <path d="M12 2a15.3 15.3 0 0 0 0 20" />
+              </svg>
+              <span>www.alanmenswear.com</span>
+              <span>@alanmenswear</span>
+            </article>
+          </div>
+
+          <p class="final-note">Thank you for shopping with Alan Mens Wear</p>
+        </footer>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

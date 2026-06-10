@@ -10,38 +10,97 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import {
-  getDownloadURL,
-  ref,
-  uploadBytesResumable,
-} from 'firebase/storage'
-import { db, storage } from '../firebase'
+import { db } from '../firebase'
 
-export function uploadPaymentScreenshot(file, onProgress) {
-  if (!storage) {
-    throw new Error('Firebase Storage is not configured.')
+const maxPaymentProofBytes = 650 * 1024
+const maxPaymentProofDimension = 1200
+
+function getDataUrlStorageSize(dataUrl) {
+  return new Blob([dataUrl]).size
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    const objectUrl = URL.createObjectURL(file)
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve(image)
+    }
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Could not read the payment screenshot. Try another image.'))
+    }
+
+    image.src = objectUrl
+  })
+}
+
+function canvasToDataUrl(canvas, quality) {
+  return canvas.toDataURL('image/jpeg', quality)
+}
+
+function getScaledSize(width, height, maxDimension) {
+  const scale = Math.min(1, maxDimension / Math.max(width, height))
+
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  }
+}
+
+async function compressPaymentScreenshot(file, onProgress) {
+  onProgress?.(15)
+
+  const image = await loadImage(file)
+  onProgress?.(35)
+
+  let maxDimension = maxPaymentProofDimension
+  let quality = 0.82
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const { width, height } = getScaledSize(
+      image.naturalWidth,
+      image.naturalHeight,
+      maxDimension,
+    )
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+
+    if (!context) {
+      throw new Error('Your browser could not prepare the screenshot.')
+    }
+
+    canvas.width = width
+    canvas.height = height
+    context.drawImage(image, 0, 0, width, height)
+
+    const screenshotUrl = canvasToDataUrl(canvas, quality)
+
+    if (getDataUrlStorageSize(screenshotUrl) <= maxPaymentProofBytes) {
+      onProgress?.(100)
+      return screenshotUrl
+    }
+
+    quality = Math.max(0.5, quality - 0.08)
+    maxDimension = Math.round(maxDimension * 0.82)
+    onProgress?.(Math.min(95, 45 + attempt * 5))
   }
 
-  const screenshotPath = `payment-screenshots/${Date.now()}-${file.name}`
-  const screenshotRef = ref(storage, screenshotPath)
-  const uploadTask = uploadBytesResumable(screenshotRef, file)
+  throw new Error('Payment screenshot is too large. Crop it or choose a smaller image.')
+}
 
-  return new Promise((resolve, reject) => {
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = Math.round(
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100,
-        )
-        onProgress(progress)
-      },
-      reject,
-      async () => {
-        const screenshotUrl = await getDownloadURL(uploadTask.snapshot.ref)
-        resolve({ screenshotPath, screenshotUrl })
-      },
-    )
-  })
+export async function uploadPaymentScreenshot(file, onProgress) {
+  const screenshotUrl = await compressPaymentScreenshot(file, onProgress)
+  const safeFileName = file.name.replace(/[^a-z0-9._-]/gi, '-').toLowerCase()
+
+  return {
+    screenshotPath: `payment-screenshots/${Date.now()}-${safeFileName}`,
+    screenshotUrl,
+    screenshotStorage: 'firestore',
+  }
 }
 
 export const orderStatuses = ['Pending', 'Processing', 'Shipped', 'Delivered']
@@ -217,6 +276,7 @@ export async function placeOrder(cartItems, paymentProof, user) {
         method: 'UPI',
         screenshotUrl: paymentProof.screenshotUrl,
         screenshotPath: paymentProof.screenshotPath,
+        screenshotStorage: paymentProof.screenshotStorage || 'storage',
         verificationStatus: 'pending',
       },
       totalAmount,
@@ -235,6 +295,7 @@ export async function placeOrder(cartItems, paymentProof, user) {
         method: 'UPI',
         screenshotUrl: paymentProof.screenshotUrl,
         screenshotPath: paymentProof.screenshotPath,
+        screenshotStorage: paymentProof.screenshotStorage || 'storage',
         verificationStatus: 'pending',
       },
       totalAmount,

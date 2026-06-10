@@ -107,7 +107,7 @@ function ProductDetails() {
           </div>
 
           <p className="detail-price">
-            INR {Number(product.price).toLocaleString('en-IN')}
+            ₹ {Number(product.price).toLocaleString('en-IN')}
           </p>
           <p>{product.description}</p>
           {message && <p className="success-message">{message}</p>}

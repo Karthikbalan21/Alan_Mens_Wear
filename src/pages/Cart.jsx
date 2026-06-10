@@ -120,7 +120,7 @@ function Cart() {
       `pa=${encodeURIComponent(upiId)}`,
       `pn=${encodeURIComponent(upiPayeeName)}`,
       `am=${formattedTotalAmount}`,
-      'cu=INR',
+      'cu=₹',
       `tn=${encodeURIComponent('Alan Mens Wear order payment')}`,
     ].join('&').replace('upi://pay&', 'upi://pay?')
 
@@ -182,7 +182,7 @@ function Cart() {
                   <p className={item.stock <= 0 ? 'cart-stock out-stock' : 'cart-stock'}>
                     {item.stock <= 0 ? 'Out of Stock' : `Available Stock: ${item.stock}`}
                   </p>
-                  <strong>INR {Number(item.price).toLocaleString('en-IN')}</strong>
+                  <strong>₹ {Number(item.price).toLocaleString('en-IN')}</strong>
                 </div>
 
                 <div className="cart-actions">
@@ -207,7 +207,7 @@ function Cart() {
                   </div>
 
                   <p className="line-total">
-                    INR {(Number(item.price) * item.quantity).toLocaleString('en-IN')}
+                    ₹ {(Number(item.price) * item.quantity).toLocaleString('en-IN')}
                   </p>
 
                   <button
@@ -224,20 +224,20 @@ function Cart() {
 
           <aside className="summary-card cart-summary">
             <h2>Order Summary</h2>
-            <p>Subtotal <strong>INR {subtotal.toLocaleString('en-IN')}</strong></p>
+            <p>Subtotal <strong>₹ {subtotal.toLocaleString('en-IN')}</strong></p>
             <p>Delivery <strong>Free</strong></p>
             <p className="grand-total">
-              Total <strong>INR {totalAmount.toLocaleString('en-IN')}</strong>
+              Total <strong>₹ {totalAmount.toLocaleString('en-IN')}</strong>
             </p>
 
             <div className="upi-payment-box">
               {upiQrCode && (
                 <img
                   src={upiQrCode}
-                  alt={`UPI QR code for INR ${formattedTotalAmount}`}
+                  alt={`UPI QR code for ₹ ${formattedTotalAmount}`}
                 />
               )}
-              <strong>Scan and pay INR {totalAmount.toLocaleString('en-IN')}</strong>
+              <strong>Scan and pay ₹ {totalAmount.toLocaleString('en-IN')}</strong>
               <span>UPI ID: {upiId}</span>
               <span>The QR includes the exact cart total.</span>
             </div>

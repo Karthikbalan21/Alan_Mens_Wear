@@ -4,20 +4,38 @@ function Footer() {
       <div className="container footer-grid">
         <div>
           <h3>Alan Mens Wear</h3>
-          <p>Sharp essentials for men who prefer effortless polish.</p>
+          <p>
+            Elevating men's fashion with timeless designs, premium fabrics,
+            and exceptional comfort for every occasion.
+          </p>
         </div>
+
         <div>
           <h4>Store</h4>
-          <p>Premium shirts, blazers, trousers, polos, and seasonal edits.</p>
+          <p>
+            Explore our curated collection of shirts, trousers, blazers,
+            ethnic wear, and modern essentials crafted for today's gentleman.
+          </p>
         </div>
+
         <div>
           <h4>Support</h4>
-          <p>support@alanmenswear.com<br />+91 93604 36527</p>
+          <p>
+            We're here to help with orders, sizing guidance, and product
+            inquiries. Reach out anytime for assistance.
+            <br />
+            support@alanmenswear.com
+            <br />
+            +91 93604 36527
+          </p>
         </div>
       </div>
-      <div className="footer-bottom">Copyright 2026 Alan Mens Wear. All rights reserved.</div>
+
+      <div className="footer-bottom">
+        © 2026 Alan Mens Wear. All rights reserved.
+      </div>
     </footer>
-  )
+  );
 }
 
-export default Footer
+export default Footer;

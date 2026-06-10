@@ -90,7 +90,7 @@ function Products() {
                 <p className="category">{product.category}</p>
                 <h3>{product.name}</h3>
                 <p className="price">
-                  INR {Number(product.price).toLocaleString('en-IN')}
+                  ₹ {Number(product.price).toLocaleString('en-IN')}
                 </p>
                 <p
                   className={

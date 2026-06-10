@@ -111,7 +111,7 @@ function Home() {
                 <h3>{product.name}</h3>
                 <p>{product.description}</p>
                 <p className="price">
-                  INR {Number(product.price).toLocaleString('en-IN')}
+                  ₹ {Number(product.price).toLocaleString('en-IN')}
                 </p>
                 <Link className="btn small" to={`/products/${product.id}`}>View Details</Link>
               </div>

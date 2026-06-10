@@ -16,10 +16,14 @@
       "Content-Type",
       "X-Firebase-Storage-Version",
       "X-Goog-Upload-Command",
+      "X-Goog-Upload-Control-URL",
+      "X-Goog-Upload-Chunk-Granularity",
       "X-Goog-Upload-Header-Content-Length",
       "X-Goog-Upload-Header-Content-Type",
       "X-Goog-Upload-Offset",
-      "X-Goog-Upload-Protocol"
+      "X-Goog-Upload-Protocol",
+      "X-Goog-Upload-Status",
+      "X-Goog-Upload-URL"
     ],
     "maxAgeSeconds": 3600
   }
