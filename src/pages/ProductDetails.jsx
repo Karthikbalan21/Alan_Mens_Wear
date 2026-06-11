@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import StarRating from '../components/StarRating'
 import { useCart } from '../context/useCart'
 import { getProduct } from '../services/productService'
+import { subscribeProductReviews } from '../services/reviewService'
 
 const fallbackReviews = [
   {
@@ -26,7 +28,9 @@ function ProductDetails() {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
   const [message, setMessage] = useState('')
+  const [reviews, setReviews] = useState([])
   const [quantity, setQuantity] = useState(1)
   const { addToCart } = useCart()
 
@@ -45,6 +49,14 @@ function ProductDetails() {
 
     loadProduct()
   }, [id])
+
+  useEffect(() => (
+    subscribeProductReviews(
+      id,
+      (reviewList) => setReviews(reviewList),
+      () => setReviews([]),
+    )
+  ), [id])
 
   if (loading) {
     return (
@@ -81,12 +93,36 @@ function ProductDetails() {
     setQuantity((current) => Math.min(Number(product.stock), current + 1))
   }
 
-  const handleAddToCart = () => {
-    addToCart(product, quantity)
-    setMessage('Product added to cart.')
+  const handleAddToCart = async () => {
+    setMessage('')
+    setActionError('')
+
+    const result = await addToCart(product, quantity)
+
+    if (result.ok) {
+      setMessage(result.message)
+    } else {
+      setActionError(result.message)
+    }
   }
 
-  const reviews = product.reviews?.length ? product.reviews : fallbackReviews
+  const visibleReviews = reviews.length
+    ? reviews
+    : fallbackReviews.map((review) => ({
+      userName: review.name,
+      rating: review.rating,
+      review: review.comment,
+    }))
+  const averageRating = visibleReviews.length
+    ? visibleReviews.reduce((total, review) => total + Number(review.rating || 0), 0) / visibleReviews.length
+    : Number(product.rating || 0)
+  const ratingBreakdown = [5, 4, 3, 2, 1].map((star) => {
+    const count = visibleReviews.filter((review) => Math.round(Number(review.rating)) === star).length
+    return {
+      star,
+      percent: visibleReviews.length ? Math.round((count / visibleReviews.length) * 100) : 0,
+    }
+  })
   const sizes = Array.isArray(product.sizes) ? product.sizes : []
   const isOutOfStock = Number(product.stock) <= 0
 
@@ -102,8 +138,9 @@ function ProductDetails() {
           <h1>{product.name}</h1>
 
           <div className="rating-row">
-            <strong>{product.rating}/5</strong>
-            <span>Average Rating</span>
+            <StarRating value={averageRating} />
+            <strong>{averageRating.toFixed(1)}/5</strong>
+            <span>{visibleReviews.length} Reviews</span>
           </div>
 
           <p className="detail-price">
@@ -111,6 +148,7 @@ function ProductDetails() {
           </p>
           <p>{product.description}</p>
           {message && <p className="success-message">{message}</p>}
+          {actionError && <p className="error-box">{actionError}</p>}
 
           <div className="detail-meta">
             <span
@@ -165,14 +203,24 @@ function ProductDetails() {
         <div className="section-heading">
           <p className="eyebrow">Customer reviews</p>
           <h2>What Customers Say</h2>
+          <div className="rating-breakdown">
+            {ratingBreakdown.map((row) => (
+              <div key={row.star}>
+                <span>{row.star} star</span>
+                <strong><i style={{ width: `${row.percent}%` }}></i></strong>
+                <em>{row.percent}%</em>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="detail-review-grid">
-          {reviews.map((review) => (
-            <article className="detail-review-card" key={`${review.name}-${review.rating}`}>
+          {visibleReviews.map((review) => (
+            <article className="detail-review-card" key={`${review.userName}-${review.rating}-${review.review}`}>
+              <StarRating value={review.rating} />
               <strong>{review.rating}/5</strong>
-              <p>"{review.comment}"</p>
-              <h3>{review.name}</h3>
+              <p>"{review.review}"</p>
+              <h3>{review.userName}</h3>
             </article>
           ))}
         </div>

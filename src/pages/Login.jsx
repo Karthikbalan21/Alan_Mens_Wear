@@ -1,5 +1,10 @@
 import { useState } from 'react'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  setPersistence,
+  signInWithEmailAndPassword,
+} from 'firebase/auth'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { auth } from '../firebase'
 
@@ -15,6 +20,7 @@ function Login() {
   const [formData, setFormData] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -64,6 +70,10 @@ function Login() {
     try {
       setIsSubmitting(true)
       setErrors({})
+      await setPersistence(
+        auth,
+        rememberMe ? browserLocalPersistence : browserSessionPersistence,
+      )
       await signInWithEmailAndPassword(auth, formData.email, formData.password)
       setMessage('Login successful.')
       setFormData(initialForm)
@@ -77,8 +87,13 @@ function Login() {
   }
 
   return (
-    <section className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit} noValidate>
+    <section className="auth-page premium-auth-page">
+      <div className="auth-visual-panel">
+        <p className="eyebrow">Alan Mens Wear</p>
+        <h2>Premium essentials for sharper everyday dressing.</h2>
+      </div>
+
+      <form className="auth-card glass-auth-card" onSubmit={handleSubmit} noValidate>
         <p className="eyebrow">Welcome back</p>
         <h1>Login</h1>
 
@@ -117,8 +132,16 @@ function Login() {
         </label>
 
         <Link className="forgot-link" to="/forgot-password">Forgot password?</Link>
+        <label className="checkbox-row">
+          <input
+            checked={rememberMe}
+            type="checkbox"
+            onChange={(event) => setRememberMe(event.target.checked)}
+          />
+          Remember me on this device
+        </label>
         <button className="btn primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Logging in...' : 'Login'}
+          {isSubmitting ? <span className="loading-spinner">Logging in...</span> : 'Login'}
         </button>
         <p>
           New here?{' '}

@@ -219,6 +219,8 @@ export async function placeOrder(cartItems, paymentProof, user) {
   const orderItems = cartItems.map((item) => ({
     productId: item.id,
     name: item.name,
+    image: item.image || '',
+    category: item.category || '',
     price: Number(item.price),
     quantity: Number(item.quantity),
   }))

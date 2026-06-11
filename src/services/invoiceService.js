@@ -65,7 +65,7 @@ function drawHeader(doc, pageWidth) {
       52,        // width
       56,        // height (keeps aspect ratio)
     )
-  } catch (e) {
+  } catch {
     // Fallback text if image fails
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(18)

@@ -3,11 +3,13 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { auth, db } from '../firebase'
+import { getNextUserCode } from '../services/idService'
 
 const initialForm = {
   name: '',
   email: '',
   password: '',
+  confirmPassword: '',
 }
 
 function Register() {
@@ -48,6 +50,10 @@ function Register() {
       nextErrors.password = 'Password must be at least 6 characters.'
     }
 
+    if (formData.confirmPassword !== formData.password) {
+      nextErrors.confirmPassword = 'Passwords do not match.'
+    }
+
     return nextErrors
   }
 
@@ -82,7 +88,10 @@ function Register() {
         displayName: formData.name,
       })
 
+      const userCode = await getNextUserCode()
+
       await setDoc(doc(db, 'users', userCredential.user.uid), {
+        userCode,
         name: formData.name,
         email: formData.email,
         role: 'customer',
@@ -101,10 +110,20 @@ function Register() {
   }
 
   return (
-    <section className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit} noValidate>
+    <section className="auth-page premium-auth-page">
+      <div className="auth-visual-panel register-panel">
+        <p className="eyebrow">Club Alan</p>
+        <h2>Create a member profile for orders, reviews, and faster checkout.</h2>
+      </div>
+
+      <form className="auth-card glass-auth-card" onSubmit={handleSubmit} noValidate>
         <p className="eyebrow">Club Alan</p>
         <h1>Register</h1>
+        <div className="auth-steps" aria-hidden="true">
+          <span className={formData.name ? 'active' : ''}></span>
+          <span className={formData.email ? 'active' : ''}></span>
+          <span className={formData.password.length >= 6 ? 'active' : ''}></span>
+        </div>
 
         {message && <p className="success-message">{message}</p>}
         {errors.form && <p className="error-box">{errors.form}</p>}
@@ -153,8 +172,25 @@ function Register() {
           {errors.password && <span className="error-message">{errors.password}</span>}
         </label>
 
+        <div className="password-strength">
+          <span style={{ width: `${getPasswordStrength(formData.password)}%` }}></span>
+        </div>
+
+        <label>
+          Confirm Password
+          <input
+            className={errors.confirmPassword ? 'input-error' : ''}
+            type="password"
+            name="confirmPassword"
+            placeholder="Confirm password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+          />
+          {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
+        </label>
+
         <button className="btn primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating account...' : 'Create Account'}
+          {isSubmitting ? <span className="loading-spinner">Creating account...</span> : 'Create Account'}
         </button>
         <p>
           Already registered?{' '}
@@ -165,6 +201,17 @@ function Register() {
       </form>
     </section>
   )
+}
+
+function getPasswordStrength(password) {
+  let score = 0
+
+  if (password.length >= 6) score += 35
+  if (/[A-Z]/.test(password)) score += 20
+  if (/[0-9]/.test(password)) score += 20
+  if (/[^A-Za-z0-9]/.test(password)) score += 25
+
+  return Math.min(100, score)
 }
 
 function getRedirectPath(path) {

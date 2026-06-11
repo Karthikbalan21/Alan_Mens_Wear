@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { motion } from 'framer-motion'
 import {
   addProduct,
   deleteProduct,
@@ -9,7 +10,10 @@ import {
 } from '../services/productService'
 import { useAuth } from '../context/useAuth'
 import { auth, db } from '../firebase'
+import { subscribeAdminReviews, subscribeAdminUsers } from '../services/adminService'
+import { getNextUserCode } from '../services/idService'
 import OrderManagement from './OrderManagement'
+import ReviewManagement from './ReviewManagement'
 
 const emptyForm = {
   name: '',
@@ -30,6 +34,9 @@ const emptyAuthForm = {
 function AdminDashboard() {
   const { currentUser, loading: authLoading } = useAuth()
   const [products, setProducts] = useState([])
+  const [users, setUsers] = useState([])
+  const [ordersSummary, setOrdersSummary] = useState(null)
+  const [reviews, setReviews] = useState([])
   const [formData, setFormData] = useState(emptyForm)
   const [imageFile, setImageFile] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
@@ -62,6 +69,26 @@ function AdminDashboard() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProducts()
   }, [authLoading, currentUser, loadProducts])
+
+  useEffect(() => {
+    if (authLoading || !currentUser) {
+      return undefined
+    }
+
+    const unsubscribeUsers = subscribeAdminUsers(
+      (userList) => setUsers(userList),
+      (loadError) => showNotice('error', loadError.message),
+    )
+    const unsubscribeReviews = subscribeAdminReviews(
+      (reviewList) => setReviews(reviewList),
+      (loadError) => showNotice('error', loadError.message),
+    )
+
+    return () => {
+      unsubscribeUsers()
+      unsubscribeReviews()
+    }
+  }, [authLoading, currentUser, showNotice])
 
   const resetForm = () => {
     setFormData(emptyForm)
@@ -154,6 +181,14 @@ function AdminDashboard() {
     return <AdminAuth />
   }
 
+  const totalOrders = ordersSummary?.totalOrders || 0
+  const deliveredOrders = ordersSummary?.deliveredOrders || 0
+  const pendingOrders = ordersSummary?.pendingOrders || 0
+  const totalRevenue = ordersSummary?.totalRevenue || 0
+  const averageRating = reviews.length
+    ? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length
+    : 0
+
   return (
     <section className="container page-section">
       <div className="section-heading">
@@ -163,6 +198,27 @@ function AdminDashboard() {
       </div>
 
       <MessageBox notice={notice} onClose={() => setNotice(null)} />
+
+      <div className="dashboard-grid admin-metrics-grid">
+        {[
+          ['Total Products', products.length],
+          ['Total Users', users.length],
+          ['Total Orders', totalOrders],
+          ['Delivered Orders', deliveredOrders],
+          ['Pending Orders', pendingOrders],
+          ['Total Revenue', `Rs. ${totalRevenue.toLocaleString('en-IN')}`],
+          ['Average Rating', averageRating.toFixed(1)],
+        ].map(([label, value]) => (
+          <motion.article
+            className="stat-card admin-metric-card"
+            key={label}
+            whileHover={{ y: -5, boxShadow: '0 24px 50px rgba(16, 22, 32, 0.14)' }}
+          >
+            <p>{label}</p>
+            <strong>{value}</strong>
+          </motion.article>
+        ))}
+      </div>
 
       <div className="admin-layout">
         <form className="admin-panel product-form" onSubmit={handleSubmit}>
@@ -312,6 +368,7 @@ function AdminDashboard() {
               <thead>
                 <tr>
                   <th>Image</th>
+                  <th>Product ID</th>
                   <th>Name</th>
                   <th>Category</th>
                   <th>Price</th>
@@ -329,6 +386,7 @@ function AdminDashboard() {
                         alt={product.name}
                       />
                     </td>
+                    <td>{product.productCode || product.id.slice(0, 8)}</td>
                     <td>{product.name}</td>
                     <td>{product.category}</td>
                     <td>₹ {Number(product.price).toLocaleString('en-IN')}</td>
@@ -360,7 +418,8 @@ function AdminDashboard() {
         </div>
       </div>
 
-      <OrderManagement />
+      <OrderManagement onSummaryChange={setOrdersSummary} />
+      <ReviewManagement />
     </section>
   )
 }
@@ -459,7 +518,10 @@ function AdminAuth() {
           displayName: formData.name,
         })
 
+        const userCode = await getNextUserCode()
+
         await setDoc(doc(db, 'users', userCredential.user.uid), {
+          userCode,
           name: formData.name,
           email: formData.email,
           role: 'admin',

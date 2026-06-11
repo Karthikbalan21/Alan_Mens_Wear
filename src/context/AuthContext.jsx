@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, onSnapshot } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { AuthContext } from './authContext'
 
@@ -14,20 +14,34 @@ export function AuthProvider({ children }) {
       return undefined
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeProfile = () => {}
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user)
+      unsubscribeProfile()
 
       if (user && db) {
-        const profileSnap = await getDoc(doc(db, 'users', user.uid))
-        setUserProfile(profileSnap.exists() ? profileSnap.data() : null)
+        unsubscribeProfile = onSnapshot(
+          doc(db, 'users', user.uid),
+          (profileSnap) => {
+            setUserProfile(profileSnap.exists() ? profileSnap.data() : null)
+            setLoading(false)
+          },
+          () => {
+            setUserProfile(null)
+            setLoading(false)
+          },
+        )
       } else {
         setUserProfile(null)
+        setLoading(false)
       }
-
-      setLoading(false)
     })
 
-    return unsubscribe
+    return () => {
+      unsubscribeProfile()
+      unsubscribe()
+    }
   }, [])
 
   const logout = async () => {

@@ -12,6 +12,8 @@ function formatOrderDate(order) {
 
 function OrderManagement() {
   const [orders, setOrders] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
   const [loading, setLoading] = useState(true)
   const [updatingOrderId, setUpdatingOrderId] = useState('')
   const [message, setMessage] = useState('')
@@ -48,6 +50,19 @@ function OrderManagement() {
     }
   }
 
+  const filteredOrders = orders.filter((order) => {
+    const searchableText = [
+      order.id,
+      order.customerName,
+      order.customerEmail,
+      ...(order.items || []).map((item) => item.name),
+    ].join(' ').toLowerCase()
+    const matchesSearch = searchableText.includes(searchTerm.trim().toLowerCase())
+    const matchesStatus = statusFilter === 'All' || order.status === statusFilter
+
+    return matchesSearch && matchesStatus
+  })
+
   return (
     <section className="admin-panel order-management">
       <div className="admin-panel-heading">
@@ -58,9 +73,30 @@ function OrderManagement() {
       {message && <p className="success-message">{message}</p>}
       {error && <p className="error-box">{error}</p>}
 
+      <div className="order-admin-tools">
+        <label className="search-box">
+          Search Orders
+          <input
+            type="search"
+            placeholder="Order ID, customer, product..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </label>
+        <label className="search-box">
+          Filter Status
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="All">All</option>
+            {orderStatuses.map((status) => (
+              <option value={status} key={status}>{status}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {loading ? (
         <p>Loading orders...</p>
-      ) : orders.length > 0 ? (
+      ) : filteredOrders.length > 0 ? (
         <table>
           <thead>
             <tr>
@@ -73,7 +109,7 @@ function OrderManagement() {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <tr key={order.id}>
                 <td>#{order.id.slice(0, 8)}</td>
                 <td>

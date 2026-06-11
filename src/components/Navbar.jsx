@@ -47,11 +47,12 @@ function Navbar() {
             Cart{totalItems > 0 ? ` (${totalItems})` : ''}
           </NavLink>
           {currentUser && <NavLink to="/orders" onClick={closeMenu}>My Orders</NavLink>}
+          {currentUser && <NavLink to="/profile" onClick={closeMenu}>Profile</NavLink>}
           {currentUser ? (
             <>
-              <span className="user-chip">
+              <Link className="user-chip" to="/profile" onClick={closeMenu}>
                 {userProfile?.name || currentUser.displayName || currentUser.email}
-              </span>
+              </Link>
               <button className="logout-btn" type="button" onClick={handleLogout}>
                 Logout
               </button>

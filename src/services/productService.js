@@ -11,6 +11,7 @@ import {
   updateDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase'
+import { getNextProductCode } from './idService'
 
 const productsCollection = 'products'
 
@@ -113,9 +114,11 @@ export async function addProduct(product, imageFile) {
 
   const image = await buildProductImage(imageFile)
   const productPayload = buildProductPayload(product)
+  const productCode = await getNextProductCode()
 
   await addDoc(collection(db, productsCollection), {
     ...productPayload,
+    productCode,
     image: image.imageUrl,
     imagePath: image.imagePath,
     createdAt: serverTimestamp(),

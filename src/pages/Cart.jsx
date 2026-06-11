@@ -26,6 +26,7 @@ function Cart() {
     updateQuantity,
     removeItem,
     clearCart,
+    cartError,
     syncCartProducts,
   } = useCart()
 
@@ -87,7 +88,7 @@ function Cart() {
       )
 
       const order = await placeOrder(cartItems, paymentProof, currentUser)
-      clearCart()
+      await clearCart()
       setPaymentScreenshot(null)
       setUploadProgress(0)
       setLatestOrder(order)
@@ -154,7 +155,7 @@ function Cart() {
       </div>
 
       {message && <p className="success-message">{message}</p>}
-      {error && <p className="error-box">{error}</p>}
+      {(error || cartError) && <p className="error-box">{error || cartError}</p>}
       {latestOrder && (
         <button
           className="btn primary invoice-download-btn"
@@ -190,7 +191,10 @@ function Cart() {
                     <button
                       type="button"
                       disabled={item.quantity <= 1}
-                      onClick={() => updateQuantity(item.id, -1)}
+                      onClick={async () => {
+                        const result = await updateQuantity(item.id, -1)
+                        if (!result.ok) setError(result.message)
+                      }}
                       aria-label="Decrease quantity"
                     >
                       -
@@ -199,7 +203,10 @@ function Cart() {
                     <button
                       type="button"
                       disabled={item.quantity >= item.stock}
-                      onClick={() => updateQuantity(item.id, 1)}
+                      onClick={async () => {
+                        const result = await updateQuantity(item.id, 1)
+                        if (!result.ok) setError(result.message)
+                      }}
                       aria-label="Increase quantity"
                     >
                       +

@@ -1,100 +1,150 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { clearUserCart, removeCartItem, saveCartItem, subscribeCart } from '../services/cartService'
+import { useAuth } from './useAuth'
 import { CartContext } from './cartContext'
 
-const cartStorageKey = 'alanMensWearCart'
-
-function loadStoredCart() {
-  try {
-    const storedCart = localStorage.getItem(cartStorageKey)
-    return storedCart ? JSON.parse(storedCart) : []
-  } catch {
-    return []
-  }
-}
-
 export function CartProvider({ children }) {
-  const [cartItems, setCartItems] = useState(loadStoredCart)
+  const { currentUser } = useAuth()
+  const [cartItems, setCartItems] = useState([])
+  const [cartError, setCartError] = useState('')
 
   useEffect(() => {
-    localStorage.setItem(cartStorageKey, JSON.stringify(cartItems))
-  }, [cartItems])
+    if (!currentUser) {
+      const timeoutId = window.setTimeout(() => setCartItems([]), 0)
+      return () => window.clearTimeout(timeoutId)
+    }
 
-  const addToCart = useCallback((product, quantity) => {
+    return subscribeCart(
+      currentUser.uid,
+      (items) => {
+        setCartItems(items)
+        setCartError('')
+      },
+      (error) => setCartError(error.message),
+    )
+  }, [currentUser])
+
+  const persistCartItem = useCallback(
+    async (item) => {
+      if (currentUser) {
+        await saveCartItem(currentUser.uid, item)
+      }
+    },
+    [currentUser],
+  )
+
+  const addToCart = useCallback(async (product, quantity) => {
+    const requestedQuantity = Number(quantity)
+    const availableStock = Number(product.stock || 0)
+    const existingItem = cartItems.find((item) => item.id === product.id)
+    const currentQuantity = Number(existingItem?.quantity || 0)
+    const nextQuantity = currentQuantity + requestedQuantity
+
+    if (availableStock <= 0 || nextQuantity > availableStock) {
+      return {
+        ok: false,
+        message: `Only ${availableStock} items available in stock`,
+      }
+    }
+
+    const nextItem = {
+      ...product,
+      quantity: nextQuantity,
+    }
+
     setCartItems((items) => {
-      const existingItem = items.find((item) => item.id === product.id)
-
       if (existingItem) {
-        return items.map((item) => {
-          if (item.id !== product.id) {
-            return item
-          }
-
-          return {
-            ...item,
-            ...product,
-            quantity: Math.min(
-              Number(product.stock),
-              Number(item.quantity) + Number(quantity),
-            ),
-          }
-        })
+        return items.map((item) => (item.id === product.id ? nextItem : item))
       }
 
-      return [
-        ...items,
-        {
-          ...product,
-          quantity: Math.min(Number(product.stock), Number(quantity)),
-        },
-      ]
+      return [...items, nextItem]
     })
-  }, [])
 
-  const updateQuantity = useCallback((productId, change) => {
+    await persistCartItem(nextItem)
+
+    return {
+      ok: true,
+      message: 'Product added to cart.',
+    }
+  }, [cartItems, persistCartItem])
+
+  const updateQuantity = useCallback(async (productId, change) => {
+    const currentItem = cartItems.find((item) => item.id === productId)
+
+    if (!currentItem) {
+      return { ok: false, message: 'Product is no longer in your cart.' }
+    }
+
+    const nextQuantity = Number(currentItem.quantity) + Number(change)
+    const availableStock = Number(currentItem.stock || 0)
+
+    if (nextQuantity > availableStock) {
+      return {
+        ok: false,
+        message: `Only ${availableStock} items available in stock`,
+      }
+    }
+
+    const nextItem = {
+      ...currentItem,
+      quantity: Math.max(1, nextQuantity),
+    }
+
     setCartItems((items) =>
-      items.map((item) => {
-        if (item.id !== productId) {
-          return item
-        }
-
-        return {
-          ...item,
-          quantity: Math.min(
-            Number(item.stock),
-            Math.max(1, Number(item.quantity) + change),
-          ),
-        }
-      }),
+      items.map((item) => (item.id === productId ? nextItem : item)),
     )
-  }, [])
 
-  const removeItem = useCallback((productId) => {
+    await persistCartItem(nextItem)
+
+    return { ok: true, message: '' }
+  }, [cartItems, persistCartItem])
+
+  const removeItem = useCallback(async (productId) => {
     setCartItems((items) => items.filter((item) => item.id !== productId))
-  }, [])
+    if (currentUser) {
+      await removeCartItem(currentUser.uid, productId)
+    }
+  }, [currentUser])
 
-  const clearCart = useCallback(() => {
+  const clearCart = useCallback(async () => {
+    const itemsToClear = cartItems
     setCartItems([])
-  }, [])
+    if (currentUser) {
+      await clearUserCart(currentUser.uid, itemsToClear)
+    }
+  }, [cartItems, currentUser])
 
   const syncCartProducts = useCallback((products) => {
+    const itemsToPersist = []
+    const itemsToRemove = []
+
     setCartItems((items) =>
       items
         .map((item) => {
           const freshProduct = products.find((product) => product.id === item.id)
 
           if (!freshProduct) {
+            itemsToRemove.push(item.id)
             return null
           }
 
-          return {
+          const nextItem = {
             ...item,
             ...freshProduct,
             quantity: Math.min(Number(freshProduct.stock), Number(item.quantity)),
           }
+
+          itemsToPersist.push(nextItem)
+          return nextItem
         })
         .filter((item) => item && Number(item.stock) > 0 && Number(item.quantity) > 0),
     )
-  }, [])
+
+    if (currentUser) {
+      itemsToPersist.forEach((item) => saveCartItem(currentUser.uid, item))
+      itemsToRemove.forEach((productId) => removeCartItem(currentUser.uid, productId))
+    }
+  }, [currentUser])
 
   const totalItems = cartItems.reduce(
     (total, item) => total + Number(item.quantity || 0),
@@ -104,6 +154,7 @@ export function CartProvider({ children }) {
   const value = useMemo(
     () => ({
       cartItems,
+      cartError,
       totalItems,
       addToCart,
       updateQuantity,
@@ -114,6 +165,7 @@ export function CartProvider({ children }) {
     [
       addToCart,
       cartItems,
+      cartError,
       clearCart,
       removeItem,
       syncCartProducts,
