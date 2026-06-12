@@ -207,7 +207,7 @@ export async function updatePaymentVerificationStatus(orderId, verificationStatu
   })
 }
 
-export async function placeOrder(cartItems, paymentProof, user) {
+export async function placeOrder(cartItems, paymentProof, user, userProfile = {}) {
   if (!db) {
     throw new Error('Firebase Firestore is not configured.')
   }
@@ -218,6 +218,7 @@ export async function placeOrder(cartItems, paymentProof, user) {
 
   const orderItems = cartItems.map((item) => ({
     productId: item.id,
+    productCode: item.productCode || item.id,
     name: item.name,
     image: item.image || '',
     category: item.category || '',
@@ -272,7 +273,8 @@ export async function placeOrder(cartItems, paymentProof, user) {
     transaction.set(orderRef, {
       items: orderItems,
       userId: user?.uid || null,
-      customerName: user?.displayName || user?.email || 'Guest Customer',
+      userCode: userProfile?.userCode || user?.userCode || null,
+      customerName: userProfile?.name || user?.displayName || user?.email || 'Guest Customer',
       customerEmail: user?.email || '',
       payment: {
         method: 'UPI',
@@ -291,7 +293,8 @@ export async function placeOrder(cartItems, paymentProof, user) {
       id: orderRef.id,
       items: orderItems,
       userId: user?.uid || null,
-      customerName: user?.displayName || user?.email || 'Guest Customer',
+      userCode: userProfile?.userCode || user?.userCode || null,
+      customerName: userProfile?.name || user?.displayName || user?.email || 'Guest Customer',
       customerEmail: user?.email || '',
       payment: {
         method: 'UPI',

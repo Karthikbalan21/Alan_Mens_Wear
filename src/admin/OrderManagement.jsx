@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   orderStatuses,
   subscribeAllOrders,
   updateOrderStatus,
 } from '../services/orderService'
+import ImageModal from '../components/ImageModal'
+import { exportOrdersToExcel, exportOrdersToPdf } from '../services/exportService'
 
 function formatOrderDate(order) {
   const date = order.createdAt?.toDate?.()
   return date ? date.toLocaleDateString('en-IN') : 'Pending'
 }
 
-function OrderManagement() {
+function OrderManagement({ onSummaryChange }) {
   const [orders, setOrders] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -18,6 +20,7 @@ function OrderManagement() {
   const [updatingOrderId, setUpdatingOrderId] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [selectedScreenshot, setSelectedScreenshot] = useState(null)
 
   useEffect(() => {
     const unsubscribe = subscribeAllOrders(
@@ -34,6 +37,23 @@ function OrderManagement() {
 
     return unsubscribe
   }, [])
+
+  useEffect(() => {
+    const totalOrders = orders.length
+    const deliveredOrders = orders.filter((order) => order.status === 'Delivered').length
+    const pendingOrders = orders.filter((order) => order.status !== 'Delivered').length
+    const totalRevenue = orders.reduce(
+      (total, order) => total + (order.status === 'Delivered' ? Number(order.totalAmount || 0) : 0),
+      0,
+    )
+
+    onSummaryChange?.({
+      totalOrders,
+      deliveredOrders,
+      pendingOrders,
+      totalRevenue,
+    })
+  }, [orders, onSummaryChange])
 
   const handleStatusChange = async (orderId, status) => {
     setUpdatingOrderId(orderId)
@@ -92,6 +112,24 @@ function OrderManagement() {
             ))}
           </select>
         </label>
+        <div className="admin-export-actions">
+          <button
+            className="btn secondary"
+            type="button"
+            onClick={() => exportOrdersToExcel(filteredOrders)}
+            disabled={!filteredOrders.length}
+          >
+            Export Excel
+          </button>
+          <button
+            className="btn secondary"
+            type="button"
+            onClick={() => exportOrdersToPdf(filteredOrders)}
+            disabled={!filteredOrders.length}
+          >
+            Export PDF
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -102,6 +140,7 @@ function OrderManagement() {
             <tr>
               <th>Order</th>
               <th>Customer</th>
+              <th>Products</th>
               <th>Total</th>
               <th>Date</th>
               <th>Payment</th>
@@ -111,18 +150,35 @@ function OrderManagement() {
           <tbody>
             {filteredOrders.map((order) => (
               <tr key={order.id}>
-                <td>#{order.id.slice(0, 8)}</td>
+                <td>
+                  <strong>#{order.id.slice(0, 8)}</strong>
+                  {order.userCode && <span className="table-subtext">{order.userCode}</span>}
+                </td>
                 <td>
                   <strong>{order.customerName}</strong>
                   <span className="table-subtext">{order.customerEmail}</span>
+                </td>
+                <td>
+                  <div className="order-products-list">
+                    {(order.items || []).map((item) => (
+                      <div key={`${item.productId}-${item.quantity}`}>
+                        <strong>{item.name}</strong>
+                        <span>{item.productCode || item.productId} × {item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
                 </td>
                 <td>₹ {Number(order.totalAmount).toLocaleString('en-IN')}</td>
                 <td>{formatOrderDate(order)}</td>
                 <td>
                   {order.payment?.screenshotUrl ? (
-                    <a href={order.payment.screenshotUrl} target="_blank" rel="noreferrer">
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => setSelectedScreenshot(order.payment.screenshotUrl)}
+                    >
                       View Screenshot
-                    </a>
+                    </button>
                   ) : (
                     'Not uploaded'
                   )}
@@ -150,6 +206,12 @@ function OrderManagement() {
           <p>Customer orders will appear here.</p>
         </div>
       )}
+
+      <ImageModal
+        imageUrl={selectedScreenshot}
+        title="Payment Screenshot"
+        onClose={() => setSelectedScreenshot(null)}
+      />
     </section>
   )
 }

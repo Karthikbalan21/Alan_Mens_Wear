@@ -14,6 +14,7 @@ import { subscribeAdminReviews, subscribeAdminUsers } from '../services/adminSer
 import { getNextUserCode } from '../services/idService'
 import OrderManagement from './OrderManagement'
 import ReviewManagement from './ReviewManagement'
+import AdminLogout from '../components/AdminLogout'
 
 const emptyForm = {
   name: '',
@@ -169,6 +170,14 @@ function AdminDashboard() {
     }
   }
 
+  const cleanupAdminState = () => {
+    setProducts([])
+    setUsers([])
+    setOrdersSummary(null)
+    setReviews([])
+    resetForm()
+  }
+
   if (authLoading) {
     return (
       <section className="container page-section centered">
@@ -190,16 +199,29 @@ function AdminDashboard() {
     : 0
 
   return (
-    <section className="container page-section">
-      <div className="section-heading">
-        <p className="eyebrow">Admin</p>
-        <h1>Product Management</h1>
-        <p>Add, view, edit, and delete Firestore products.</p>
+    <motion.section
+      className="container page-section"
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.48 }}
+    >
+      <div className="section-heading admin-heading-row">
+        <div>
+          <p className="eyebrow">Admin</p>
+          <h1>Product Management</h1>
+          <p>Add, view, edit, and delete Firestore products.</p>
+        </div>
+        <AdminLogout onCleanup={cleanupAdminState} />
       </div>
 
       <MessageBox notice={notice} onClose={() => setNotice(null)} />
 
-      <div className="dashboard-grid admin-metrics-grid">
+      <motion.section
+        className="dashboard-grid admin-metrics-grid"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+      >
         {[
           ['Total Products', products.length],
           ['Total Users', users.length],
@@ -208,19 +230,27 @@ function AdminDashboard() {
           ['Pending Orders', pendingOrders],
           ['Total Revenue', `Rs. ${totalRevenue.toLocaleString('en-IN')}`],
           ['Average Rating', averageRating.toFixed(1)],
-        ].map(([label, value]) => (
+        ].map(([label, value], index) => (
           <motion.article
             className="stat-card admin-metric-card"
             key={label}
-            whileHover={{ y: -5, boxShadow: '0 24px 50px rgba(16, 22, 32, 0.14)' }}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, delay: index * 0.05 }}
+            whileHover={{ y: -6, boxShadow: '0 24px 50px rgba(16, 22, 32, 0.14)' }}
           >
             <p>{label}</p>
             <strong>{value}</strong>
           </motion.article>
         ))}
-      </div>
+      </motion.section>
 
-      <div className="admin-layout">
+      <motion.div
+        className="admin-layout"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.08 }}
+      >
         <form className="admin-panel product-form" onSubmit={handleSubmit}>
           <div className="admin-panel-heading">
             <h2>{editingProduct ? 'Update Product' : 'Add Product'}</h2>
@@ -416,11 +446,13 @@ function AdminDashboard() {
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       <OrderManagement onSummaryChange={setOrdersSummary} />
       <ReviewManagement />
-    </section>
+
+      
+    </motion.section>
   )
 }
 

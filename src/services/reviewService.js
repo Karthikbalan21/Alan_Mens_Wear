@@ -2,7 +2,9 @@ import {
   addDoc,
   collection,
   getDocs,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   where,
@@ -24,6 +26,24 @@ export function subscribeProductReviews(productId, onReviews, onError) {
     query(
       collection(db, 'reviews'),
       where('productId', '==', productId),
+      orderBy('createdAt', 'desc'),
+    ),
+    (snapshot) => onReviews(snapshot.docs.map(mapReviewDoc)),
+    onError,
+  )
+}
+
+export function subscribeLatestReviews(onReviews, onError) {
+  if (!db) {
+    onError(new Error('Firebase Firestore is not configured.'))
+    return () => {}
+  }
+
+  return onSnapshot(
+    query(
+      collection(db, 'reviews'),
+      orderBy('createdAt', 'desc'),
+      limit(6),
     ),
     (snapshot) => onReviews(snapshot.docs.map(mapReviewDoc)),
     onError,
@@ -60,8 +80,11 @@ export async function addProductReview({ user, orderId, product, rating, review 
   await addDoc(collection(db, 'reviews'), {
     userId: user.uid,
     userName: user.displayName || user.email || 'Customer',
+    userCode: user.userCode || null,
+    userPhotoURL: user.photoURL || null,
     orderId,
-    productId: product.productId,
+    productId: product.id || product.productId,
+    productCode: product.productCode || null,
     productName: product.name,
     rating: normalizedRating,
     review: review.trim(),

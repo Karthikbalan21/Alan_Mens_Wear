@@ -20,7 +20,7 @@ function Cart() {
   const [latestOrder, setLatestOrder] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
   const {
     cartItems,
     updateQuantity,
@@ -87,7 +87,7 @@ function Cart() {
         setUploadProgress,
       )
 
-      const order = await placeOrder(cartItems, paymentProof, currentUser)
+      const order = await placeOrder(cartItems, paymentProof, currentUser, userProfile)
       await clearCart()
       setPaymentScreenshot(null)
       setUploadProgress(0)

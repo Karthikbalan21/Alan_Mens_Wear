@@ -14,11 +14,11 @@ const initialForm = {
   password: '',
 }
 
-function Login() {
+function AdminLogin() {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  const redirectPath = getRedirectPath(searchParams.get('redirect'))
+  const redirectPath = getRedirectPath(searchParams.get('redirect')) || '/admin'
   const { currentUser, userProfile } = useAuth()
   const [formData, setFormData] = useState(initialForm)
   const [errors, setErrors] = useState({})
@@ -81,7 +81,6 @@ function Login() {
       await signInWithEmailAndPassword(auth, formData.email, formData.password)
       setMessage('Login successful.')
       setFormData(initialForm)
-      // mark that we should redirect once auth/profile is ready
       setPendingRedirect(true)
     } catch (error) {
       setMessage('')
@@ -91,21 +90,15 @@ function Login() {
     }
   }
 
-  // Wait for profile to load before performing redirect; helps admin route access.
+  // Wait for profile to load before performing redirect; ensures admin role is present.
   useEffect(() => {
     if (!pendingRedirect) return
 
-    // If user signed in and profile has loaded (could be null if not found)
     if (currentUser && userProfile !== null) {
-      // If redirecting to admin, ensure profile role is admin
-      if (redirectPath.startsWith('/admin')) {
-        if (userProfile?.role === 'admin') {
-          navigate(redirectPath, { replace: true })
-        } else {
-          setErrors({ form: 'You are not authorized to access the admin dashboard.' })
-        }
+      if (userProfile?.role === 'admin') {
+        navigate(redirectPath || '/admin', { replace: true })
       } else {
-        navigate(redirectPath, { replace: true })
+        setErrors({ form: 'You are not authorized to access the admin dashboard.' })
       }
 
       setPendingRedirect(false)
@@ -115,13 +108,13 @@ function Login() {
   return (
     <section className="auth-page premium-auth-page">
       <div className="auth-visual-panel">
-        <p className="eyebrow">Alan Mens Wear</p>
-        <h2>Premium essentials for sharper everyday dressing.</h2>
+        <p className="eyebrow">Admin Area</p>
+        <h2>Admin sign in</h2>
       </div>
 
       <form className="auth-card glass-auth-card" onSubmit={handleSubmit} noValidate>
-        <p className="eyebrow">Welcome back</p>
-        <h1>Login</h1>
+        <p className="eyebrow">Admin access</p>
+        <h1>Admin Login</h1>
 
         {message && <p className="success-message">{message}</p>}
         {errors.form && <p className="error-box">{errors.form}</p>}
@@ -157,7 +150,6 @@ function Login() {
           {errors.password && <span className="error-message">{errors.password}</span>}
         </label>
 
-        <Link className="forgot-link" to="/forgot-password">Forgot password?</Link>
         <label className="checkbox-row">
           <input
             checked={rememberMe}
@@ -169,22 +161,17 @@ function Login() {
         <button className="btn primary" type="submit" disabled={isSubmitting}>
           {isSubmitting ? <span className="loading-spinner">Logging in...</span> : 'Login'}
         </button>
-        <p>
-          New here?{' '}
-          <Link to={`/register?redirect=${encodeURIComponent(redirectPath)}`}>
-            Create an account
-          </Link>
-        </p>
       </form>
     </section>
   )
 }
+
 function getRedirectPath(path) {
   if (path?.startsWith('/') && !path.startsWith('//')) {
     return path
   }
 
-  return '/'
+  return null
 }
 
 function getAuthErrorMessage(code) {
@@ -203,4 +190,4 @@ function getAuthErrorMessage(code) {
   return 'Unable to login. Please check your Firebase setup and try again.'
 }
 
-export default Login
+export default AdminLogin

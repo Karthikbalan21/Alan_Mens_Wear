@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, onSnapshot } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../firebase'
 
 const mapDoc = (snapshotDoc) => ({
@@ -25,8 +25,10 @@ export function subscribeAdminReviews(onReviews, onError) {
     return () => {}
   }
 
+  const reviewQuery = query(collection(db, 'reviews'), orderBy('createdAt', 'desc'))
+
   return onSnapshot(
-    collection(db, 'reviews'),
+    reviewQuery,
     (snapshot) => onReviews(snapshot.docs.map(mapDoc)),
     onError,
   )

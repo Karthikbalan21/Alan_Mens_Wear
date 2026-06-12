@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, useInView } from 'framer-motion'
 import StarRating from '../components/StarRating'
 import { getProducts } from '../services/productService'
+import { subscribeLatestReviews } from '../services/reviewService'
 
 const categories = [
   {
@@ -24,24 +25,6 @@ const categories = [
   {
     name: 'Formals',
     image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=700&q=80',
-  },
-]
-
-const reviews = [
-  {
-    name: 'Akilan',
-    text: 'The blazer fit was sharp right out of the box. Clean fabric, quick delivery, and easy styling.',
-    rating: '5.0',
-  },
-  {
-    name: 'Dhinesh',
-    text: 'Great collection for office wear. The shirts feel premium and hold their shape after washing.',
-    rating: '4.8',
-  },
-  {
-    name: 'Lokesh',
-    text: 'I ordered chinos and polos together. The colors look refined and the fit feels comfortable all day.',
-    rating: '4.9',
   },
 ]
 
@@ -81,6 +64,8 @@ function AnimatedCounter({ value, suffix = '' }) {
 
 function Home() {
   const [featuredProducts, setFeaturedProducts] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [reviewError, setReviewError] = useState('')
   const [activeReview, setActiveReview] = useState(0)
 
   useEffect(() => {
@@ -97,12 +82,32 @@ function Home() {
   }, [])
 
   useEffect(() => {
+    const unsubscribe = subscribeLatestReviews(
+      (reviewList) => {
+        setReviews(reviewList)
+        setReviewError('')
+      },
+      (loadError) => {
+        setReviews([])
+        setReviewError(loadError.message)
+      },
+    )
+
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    if (!reviews.length) {
+      setActiveReview(0)
+      return undefined
+    }
+
     const intervalId = window.setInterval(() => {
       setActiveReview((current) => (current + 1) % reviews.length)
     }, 3600)
 
     return () => window.clearInterval(intervalId)
-  }, [])
+  }, [reviews.length])
 
   const totalProducts = featuredProducts.length || 12
 
@@ -245,26 +250,44 @@ function Home() {
             <h2>Trusted by Style-Focused Men</h2>
           </div>
 
-          <div className="testimonial-slider">
-            {reviews.map((review, index) => (
-              <motion.article
-                className={`review-card testimonial-card ${activeReview === index ? 'active' : ''}`}
-                key={review.name}
-                animate={{
-                  opacity: activeReview === index ? 1 : 0,
-                  x: activeReview === index ? 0 : 26,
-                  pointerEvents: activeReview === index ? 'auto' : 'none',
-                }}
-                transition={{ duration: 0.45 }}
-              >
-                <div className="review-avatar">{review.name.slice(0, 1)}</div>
-                <StarRating value={Number(review.rating)} />
-                <strong>{review.rating}/5</strong>
-                <p>"{review.text}"</p>
-                <h3>{review.name}</h3>
-              </motion.article>
-            ))}
-          </div>
+          {reviewError ? (
+            <p className="error-box">Unable to load reviews: {reviewError}</p>
+          ) : !reviews.length ? (
+            <div className="empty-state">
+              <h2>Real customer feedback is coming soon</h2>
+              <p>Browse our collection and check back for fresh reviews from verified customers.</p>
+            </div>
+          ) : (
+            <div className="testimonial-slider">
+              {reviews.map((review, index) => (
+                <motion.article
+                  className={`review-card testimonial-card ${activeReview === index ? 'active' : ''}`}
+                  key={review.id}
+                  animate={{
+                    opacity: activeReview === index ? 1 : 0,
+                    x: activeReview === index ? 0 : 26,
+                    pointerEvents: activeReview === index ? 'auto' : 'none',
+                  }}
+                  transition={{ duration: 0.45 }}
+                >
+                  {review.userPhotoURL ? (
+                    <img className="review-avatar review-avatar-image" src={review.userPhotoURL} alt={review.userName || 'Customer'} />
+                  ) : (
+                    <div className="review-avatar">{(review.userName || 'C').slice(0, 1)}</div>
+                  )}
+                  <div className="review-header">
+                    <div>
+                      <StarRating value={Number(review.rating)} />
+                      <strong>{Number(review.rating).toFixed(1)}/5</strong>
+                    </div>
+                    <span>{review.createdAt?.toDate ? review.createdAt.toDate().toLocaleDateString('en-IN') : ''}</span>
+                  </div>
+                  <p>"{review.review || review.text}"</p>
+                  <h3>{review.userName || 'Customer'}</h3>
+                </motion.article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </>

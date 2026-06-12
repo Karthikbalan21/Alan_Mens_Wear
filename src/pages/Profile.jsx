@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { subscribeUserOrders } from '../services/orderService'
@@ -109,32 +110,58 @@ function Profile() {
 
   return (
     <section className="profile-page">
-      <div className="profile-cover">
+      <motion.div
+        className="profile-cover"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="container profile-hero">
-          <div className="profile-avatar">
+          <motion.div
+            className="profile-avatar"
+            initial={{ scale: 0.88, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.55, delay: 0.1 }}
+          >
             {photoURL ? <img src={photoURL} alt={formData.name || 'Profile'} /> : initials}
-          </div>
+          </motion.div>
           <div>
             <p className="eyebrow">Member Profile</p>
             <h1>{formData.name || currentUser.email}</h1>
             <p>{currentUser.email}</p>
+            {userProfile?.userCode && <span className="profile-code">{userProfile.userCode}</span>}
             <span>Joined {formatJoinDate(currentUser, userProfile)}</span>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="container page-section profile-dashboard">
+      <motion.div
+        className="container page-section profile-dashboard"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.08 }}
+      >
         {message && <p className="success-message">{message}</p>}
         {error && <p className="error-box">{error}</p>}
 
-        <div className="dashboard-grid">
-          <article className="stat-card"><p>Total Orders</p><strong>{orders.length}</strong></article>
-          <article className="stat-card"><p>Delivered Orders</p><strong>{deliveredOrders}</strong></article>
-          <article className="stat-card"><p>Wishlist Items</p><strong>{wishlistItems}</strong></article>
-          <article className="stat-card"><p>Reviews Given</p><strong>{reviews.length}</strong></article>
-        </div>
+        <motion.div
+          className="dashboard-grid"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.12 }}
+        >
+          <motion.article whileHover={{ y: -5 }} className="stat-card"><p>Total Orders</p><strong>{orders.length}</strong></motion.article>
+          <motion.article whileHover={{ y: -5 }} className="stat-card"><p>Delivered Orders</p><strong>{deliveredOrders}</strong></motion.article>
+          <motion.article whileHover={{ y: -5 }} className="stat-card"><p>Wishlist Items</p><strong>{wishlistItems}</strong></motion.article>
+          <motion.article whileHover={{ y: -5 }} className="stat-card"><p>Reviews Given</p><strong>{reviews.length}</strong></motion.article>
+        </motion.div>
 
-        <div className="profile-grid">
+        <motion.div
+          className="profile-grid"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.16 }}
+        >
           <article className="profile-panel">
             <div className="admin-panel-heading">
               <h2>{profileCompletion}% Profile Complete</h2>
@@ -146,7 +173,13 @@ function Profile() {
             <p>Add your photo, phone number, address, and name for faster checkout support.</p>
 
             {editing && (
-              <form className="product-form profile-form" onSubmit={handleSubmit}>
+              <motion.form
+                className="product-form profile-form"
+                onSubmit={handleSubmit}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
                 <label>
                   Name
                   <input name="name" required value={formData.name} onChange={handleChange} />
@@ -166,7 +199,7 @@ function Profile() {
                 <button className="btn primary" disabled={saving} type="submit">
                   {saving ? 'Saving...' : 'Save Profile'}
                 </button>
-              </form>
+              </motion.form>
             )}
           </article>
 
@@ -177,8 +210,8 @@ function Profile() {
             <button className="btn" type="button" onClick={() => setEditing(true)}>Edit Profile</button>
             <button className="btn secondary-dark" type="button" onClick={logout}>Logout</button>
           </article>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </section>
   )
 }

@@ -136,6 +136,7 @@ function ProductDetails() {
         <div className="detail-copy">
           <p className="eyebrow">{product.category}</p>
           <h1>{product.name}</h1>
+          <p className="product-code">Product ID: {product.productCode || product.id.slice(0, 8)}</p>
 
           <div className="rating-row">
             <StarRating value={averageRating} />
