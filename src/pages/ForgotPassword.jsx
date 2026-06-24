@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { sendPasswordResetEmail } from 'firebase/auth'
 import { Link } from 'react-router-dom'
+import { FiSend } from 'react-icons/fi'
+import { toast } from 'react-toastify'
 import { auth } from '../firebase'
 
 function ForgotPassword() {
@@ -12,20 +14,26 @@ function ForgotPassword() {
     event.preventDefault()
 
     if (!email.trim()) {
-      setError('Email is required.')
+      const errorMessage = 'Email is required.'
+      setError(errorMessage)
       setMessage('')
+      toast.error(errorMessage)
       return
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Enter a valid email address.')
+      const errorMessage = 'Enter a valid email address.'
+      setError(errorMessage)
       setMessage('')
+      toast.error(errorMessage)
       return
     }
 
     if (!auth) {
-      setError('Firebase Authentication is not configured.')
+      const errorMessage = 'Firebase Authentication is not configured.'
+      setError(errorMessage)
       setMessage('')
+      toast.error(errorMessage)
       return
     }
 
@@ -33,10 +41,13 @@ function ForgotPassword() {
       await sendPasswordResetEmail(auth, email)
       setError('')
       setMessage('Password reset link sent. Please check your email.')
+      toast.success('Password reset link sent.')
       setEmail('')
     } catch (firebaseError) {
       setMessage('')
-      setError(getResetErrorMessage(firebaseError.code))
+      const errorMessage = getResetErrorMessage(firebaseError.code)
+      setError(errorMessage)
+      toast.error(errorMessage)
     }
   }
 
@@ -64,7 +75,10 @@ function ForgotPassword() {
           />
         </label>
 
-        <button className="btn primary" type="submit">Send Reset Link</button>
+        <button className="btn primary" type="submit">
+          <FiSend aria-hidden="true" />
+          Send Reset Link
+        </button>
         <p>Remembered it? <Link to="/login">Back to login</Link></p>
       </form>
     </section>

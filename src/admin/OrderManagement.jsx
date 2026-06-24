@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   orderStatuses,
   subscribeAllOrders,
   updateOrderStatus,
 } from '../services/orderService'
+import { toast } from 'react-toastify'
 import ImageModal from '../components/ImageModal'
 import { exportOrdersToExcel, exportOrdersToPdf } from '../services/exportService'
 
@@ -63,8 +64,10 @@ function OrderManagement({ onSummaryChange }) {
     try {
       await updateOrderStatus(orderId, status)
       setMessage('Order status updated successfully.')
+      toast.success(`Order updated to ${status}.`)
     } catch (statusError) {
       setError(statusError.message)
+      toast.error(statusError.message)
     } finally {
       setUpdatingOrderId('')
     }

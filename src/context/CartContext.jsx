@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { clearUserCart, removeCartItem, saveCartItem, subscribeCart } from '../services/cartService'
 import { useAuth } from './useAuth'
 import { CartContext } from './cartContext'
+import { getSizePrice } from '../utils/productPricing'
 
 export function CartProvider({ children }) {
   const { currentUser } = useAuth()
@@ -33,10 +34,12 @@ export function CartProvider({ children }) {
     [currentUser],
   )
 
-  const addToCart = useCallback(async (product, quantity) => {
+  const addToCart = useCallback(async (product, quantity, selectedSize = '') => {
     const requestedQuantity = Number(quantity)
-    const availableStock = Number(product.stock || 0)
-    const existingItem = cartItems.find((item) => item.id === product.id)
+    const cartId = selectedSize ? `${product.id}-${selectedSize}` : product.id
+    const availableStock = getAvailableStock(product, selectedSize)
+    const selectedPrice = getSizePrice(product, selectedSize)
+    const existingItem = cartItems.find((item) => item.id === cartId)
     const currentQuantity = Number(existingItem?.quantity || 0)
     const nextQuantity = currentQuantity + requestedQuantity
 
@@ -49,12 +52,17 @@ export function CartProvider({ children }) {
 
     const nextItem = {
       ...product,
+      id: cartId,
+      productId: product.id,
+      selectedSize,
+      price: selectedPrice,
+      stock: availableStock,
       quantity: nextQuantity,
     }
 
     setCartItems((items) => {
       if (existingItem) {
-        return items.map((item) => (item.id === product.id ? nextItem : item))
+        return items.map((item) => (item.id === cartId ? nextItem : item))
       }
 
       return [...items, nextItem]
@@ -68,8 +76,8 @@ export function CartProvider({ children }) {
     }
   }, [cartItems, persistCartItem])
 
-  const updateQuantity = useCallback(async (productId, change) => {
-    const currentItem = cartItems.find((item) => item.id === productId)
+  const updateQuantity = useCallback(async (cartId, change) => {
+    const currentItem = cartItems.find((item) => item.id === cartId)
 
     if (!currentItem) {
       return { ok: false, message: 'Product is no longer in your cart.' }
@@ -91,7 +99,7 @@ export function CartProvider({ children }) {
     }
 
     setCartItems((items) =>
-      items.map((item) => (item.id === productId ? nextItem : item)),
+      items.map((item) => (item.id === cartId ? nextItem : item)),
     )
 
     await persistCartItem(nextItem)
@@ -99,10 +107,10 @@ export function CartProvider({ children }) {
     return { ok: true, message: '' }
   }, [cartItems, persistCartItem])
 
-  const removeItem = useCallback(async (productId) => {
-    setCartItems((items) => items.filter((item) => item.id !== productId))
+  const removeItem = useCallback(async (cartId) => {
+    setCartItems((items) => items.filter((item) => item.id !== cartId))
     if (currentUser) {
-      await removeCartItem(currentUser.uid, productId)
+      await removeCartItem(currentUser.uid, cartId)
     }
   }, [currentUser])
 
@@ -121,17 +129,25 @@ export function CartProvider({ children }) {
     setCartItems((items) =>
       items
         .map((item) => {
-          const freshProduct = products.find((product) => product.id === item.id)
+          const productId = item.productId || item.id
+          const freshProduct = products.find((product) => product.id === productId)
 
           if (!freshProduct) {
             itemsToRemove.push(item.id)
             return null
           }
 
+          const availableStock = getAvailableStock(freshProduct, item.selectedSize)
+          const selectedPrice = getSizePrice(freshProduct, item.selectedSize)
           const nextItem = {
             ...item,
             ...freshProduct,
-            quantity: Math.min(Number(freshProduct.stock), Number(item.quantity)),
+            id: item.id,
+            productId,
+            selectedSize: item.selectedSize || '',
+            price: selectedPrice,
+            stock: availableStock,
+            quantity: Math.min(availableStock, Number(item.quantity)),
           }
 
           itemsToPersist.push(nextItem)
@@ -175,4 +191,12 @@ export function CartProvider({ children }) {
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
+}
+
+function getAvailableStock(product, selectedSize = '') {
+  if (selectedSize && product.sizeInventory && typeof product.sizeInventory === 'object') {
+    return Number(product.sizeInventory[selectedSize] || 0)
+  }
+
+  return Number(product.stock || 0)
 }

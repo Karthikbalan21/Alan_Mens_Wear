@@ -1,7 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { motion } from 'framer-motion'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
+import {
+  FiBell,
+  FiChevronDown,
+  FiGrid,
+  FiMenu,
+  FiMoon,
+  FiPackage,
+  FiSearch,
+  FiShoppingBag,
+  FiStar,
+  FiSun,
+  FiUsers,
+  FiX,
+} from 'react-icons/fi'
 import {
   addProduct,
   deleteProduct,
@@ -10,21 +26,36 @@ import {
 } from '../services/productService'
 import { useAuth } from '../context/useAuth'
 import { auth, db } from '../firebase'
-import { subscribeAdminReviews, subscribeAdminUsers } from '../services/adminService'
+import { deleteUserRecord, subscribeAdminReviews, subscribeAdminUsers } from '../services/adminService'
 import { getNextUserCode } from '../services/idService'
 import OrderManagement from './OrderManagement'
 import ReviewManagement from './ReviewManagement'
 import AdminLogout from '../components/AdminLogout'
+import { getSizePrice } from '../utils/productPricing'
 
 const emptyForm = {
   name: '',
   category: '',
   price: '',
-  stock: '',
   rating: '',
-  sizes: '',
+  sizeInventory: {
+    S: '',
+    M: '',
+    L: '',
+    XL: '',
+    XXL: '',
+  },
+  sizePrices: {
+    S: '',
+    M: '',
+    L: '',
+    XL: '',
+    XXL: '',
+  },
   description: '',
 }
+
+const sizeOptions = ['S', 'M', 'L', 'XL', 'XXL']
 
 const emptyAuthForm = {
   name: '',
@@ -32,21 +63,44 @@ const emptyAuthForm = {
   password: '',
 }
 
+const adminNavItems = [
+  { id: 'dashboard-section', label: 'Dashboard', path: '/admin#dashboard-section', Icon: FiGrid },
+  { id: 'products-section', label: 'Products', path: '/admin#products-section', Icon: FiPackage },
+  { id: 'users-section', label: 'Users', path: '/admin#users-section', Icon: FiUsers },
+  { id: 'orders-section', label: 'Order Management', path: '/admin#orders-section', Icon: FiShoppingBag },
+  { id: 'reviews-section', label: 'Customer Reviews', path: '/admin#reviews-section', Icon: FiStar },
+]
+
 function AdminDashboard() {
-  const { currentUser, loading: authLoading } = useAuth()
+  const { currentUser, userProfile, loading: authLoading } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
   const [ordersSummary, setOrdersSummary] = useState(null)
   const [reviews, setReviews] = useState([])
+  const [userStack, setUserStack] = useState([])
   const [formData, setFormData] = useState(emptyForm)
   const [imageFile, setImageFile] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState(null)
+  const [activeSection, setActiveSection] = useState('dashboard-section')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [adminSearchTerm, setAdminSearchTerm] = useState('')
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('alan-admin-theme') === 'dark')
+  const sidebarRef = useRef(null)
+  const profileMenuRef = useRef(null)
 
   const showNotice = useCallback((type, text) => {
     setNotice({ type, text })
+    if (type === 'success') {
+      toast.success(text)
+    } else {
+      toast.error(text)
+    }
   }, [])
 
   const loadProducts = useCallback(async () => {
@@ -77,7 +131,10 @@ function AdminDashboard() {
     }
 
     const unsubscribeUsers = subscribeAdminUsers(
-      (userList) => setUsers(userList),
+      (userList) => {
+        setUsers(userList)
+        setUserStack(userList)
+      },
       (loadError) => showNotice('error', loadError.message),
     )
     const unsubscribeReviews = subscribeAdminReviews(
@@ -90,6 +147,73 @@ function AdminDashboard() {
       unsubscribeReviews()
     }
   }, [authLoading, currentUser, showNotice])
+
+  useEffect(() => {
+    localStorage.setItem('alan-admin-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
+
+  useEffect(() => {
+    const hashSection = location.hash.replace('#', '')
+
+    if (!hashSection) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setActiveSection(hashSection)
+      document.getElementById(hashSection)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [location.hash])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const visibleSection = adminNavItems.find(({ id }) => {
+        const section = document.getElementById(id)
+        if (!section) return false
+
+        const rect = section.getBoundingClientRect()
+        return rect.top <= 150 && rect.bottom >= 150
+      })
+
+      if (visibleSection) {
+        setActiveSection(visibleSection.id)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (sidebarOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+        setSidebarOpen(false)
+      }
+
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setProfileMenuOpen(false)
+      }
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false)
+        setProfileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [sidebarOpen])
 
   const resetForm = () => {
     setFormData(emptyForm)
@@ -105,6 +229,26 @@ function AdminDashboard() {
     }))
   }
 
+  const handleSizeInventoryChange = (size, value) => {
+    setFormData((current) => ({
+      ...current,
+      sizeInventory: {
+        ...current.sizeInventory,
+        [size]: value,
+      },
+    }))
+  }
+
+  const handleSizePriceChange = (size, value) => {
+    setFormData((current) => ({
+      ...current,
+      sizePrices: {
+        ...current.sizePrices,
+        [size]: value,
+      },
+    }))
+  }
+
   const handleEdit = (product) => {
     setEditingProduct(product)
     setImageFile(null)
@@ -112,12 +256,28 @@ function AdminDashboard() {
       name: product.name || '',
       category: product.category || '',
       price: product.price || '',
-      stock: product.stock || '',
       rating: product.rating || '',
-      sizes: Array.isArray(product.sizes) ? product.sizes.join(', ') : '',
+      sizeInventory: sizeOptions.reduce((inventory, size) => {
+        const legacySizeSelected = Array.isArray(product.sizes) && product.sizes.includes(size)
+        inventory[size] = product.sizeInventory?.[size] ?? (legacySizeSelected ? product.stock : '')
+        return inventory
+      }, {}),
+      sizePrices: sizeOptions.reduce((prices, size) => {
+        const legacySizeSelected = Array.isArray(product.sizes) && product.sizes.includes(size)
+        const hasSizeStock = Number(product.sizeInventory?.[size] || 0) > 0 || legacySizeSelected
+        prices[size] = hasSizeStock ? getSizePrice(product, size) : ''
+        return prices
+      }, {}),
       description: product.description || '',
     })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const handleAdminNavClick = (sectionId) => {
+    setActiveSection(sectionId)
+    setSidebarOpen(false)
+    navigate(`/admin#${sectionId}`, { replace: false })
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const handleSubmit = async (event) => {
@@ -125,6 +285,26 @@ function AdminDashboard() {
 
     if (!currentUser) {
       showNotice('error', 'Sign in before uploading product images.')
+      return
+    }
+
+    const totalSizeStock = Object.values(formData.sizeInventory).reduce(
+      (total, amount) => total + Number(amount || 0),
+      0,
+    )
+
+    if (totalSizeStock <= 0) {
+      showNotice('error', 'Enter stock quantity for at least one size.')
+      return
+    }
+
+    const missingSizePrice = sizeOptions.find(
+      (size) => Number(formData.sizeInventory[size] || 0) > 0
+        && Number(formData.sizePrices[size] || 0) <= 0,
+    )
+
+    if (missingSizePrice) {
+      showNotice('error', `Enter a price for size ${missingSizePrice}.`)
       return
     }
 
@@ -170,11 +350,67 @@ function AdminDashboard() {
     }
   }
 
+  const handleSendPasswordReset = async (user) => {
+    if (!user.email) {
+      showNotice('error', 'This user does not have an email address.')
+      return
+    }
+
+    try {
+      setNotice(null)
+      await sendPasswordResetEmail(auth, user.email)
+      showNotice('success', `Password reset email sent to ${user.email}`)
+    } catch (resetError) {
+      showNotice('error', resetError.message)
+    }
+  }
+
+  const handleRemoveUser = async (user) => {
+    if (user.id === currentUser.uid) {
+      showNotice('error', 'You cannot remove your own admin profile here.')
+      return
+    }
+
+    const confirmed = window.confirm(`Remove ${user.email || user.name || 'this user'} from admin records?`)
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setNotice(null)
+      await deleteUserRecord(user.id)
+      setUserStack((currentStack) => currentStack.filter((stackUser) => stackUser.id !== user.id))
+      showNotice('success', 'User record removed successfully.')
+    } catch (deleteError) {
+      showNotice('error', deleteError.message)
+    }
+  }
+
+  const handlePushUser = (user) => {
+    setUserStack((currentStack) => [...currentStack.filter((stackUser) => stackUser.id !== user.id), user])
+    showNotice('success', `Pushed ${user.email || user.name} onto stack`)
+  }
+
+  const handlePopUser = () => {
+    setUserStack((currentStack) => {
+      if (currentStack.length === 0) {
+        showNotice('error', 'Stack is empty.')
+        return currentStack
+      }
+
+      const poppedUser = currentStack[currentStack.length - 1]
+      showNotice('success', `Popped ${poppedUser.email || poppedUser.name} from stack`)
+      return currentStack.slice(0, -1)
+    })
+  }
+
   const cleanupAdminState = () => {
     setProducts([])
     setUsers([])
     setOrdersSummary(null)
     setReviews([])
+    setUserStack([])
     resetForm()
   }
 
@@ -197,26 +433,153 @@ function AdminDashboard() {
   const averageRating = reviews.length
     ? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length
     : 0
+  const adminName = userProfile?.name || currentUser.displayName || 'Admin'
+  const adminEmail = currentUser.email || userProfile?.email || 'admin@alanmenswear.com'
+  const adminInitial = adminName.trim().charAt(0).toUpperCase() || 'A'
+  const notificationCount = pendingOrders + reviews.length
+  const searchPlaceholder = `Search ${products.length} products, ${users.length} users, ${totalOrders} orders`
 
   return (
     <motion.section
-      className="container page-section"
+      className={`admin-shell ${darkMode ? 'dark' : ''}`}
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.48 }}
     >
-      <div className="section-heading admin-heading-row">
-        <div>
-          <p className="eyebrow">Admin</p>
-          <h1>Product Management</h1>
-          <p>Add, view, edit, and delete Firestore products.</p>
-        </div>
-        <AdminLogout onCleanup={cleanupAdminState} />
-      </div>
+      <button
+        className={`admin-mobile-overlay ${sidebarOpen ? 'open' : ''}`}
+        type="button"
+        aria-label="Close admin menu"
+        onClick={() => setSidebarOpen(false)}
+      />
 
-      <MessageBox notice={notice} onClose={() => setNotice(null)} />
+      <aside
+        ref={sidebarRef}
+        className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}
+        aria-label="Admin sidebar"
+      >
+        <div className="admin-sidebar-brand">
+          <div className="admin-brand-mark" aria-hidden>AM</div>
+          <div>
+            <strong>Alan Mens Wear</strong>
+            <span>Seller Console</span>
+          </div>
+          <button
+            className="admin-sidebar-close"
+            type="button"
+            aria-label="Close admin menu"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <FiX aria-hidden />
+          </button>
+        </div>
+
+        <div className="admin-identity-card">
+          <div className="admin-avatar" aria-hidden>{adminInitial}</div>
+          <div>
+            <strong>{adminName}</strong>
+            <span>{adminEmail}</span>
+          </div>
+        </div>
+
+        <nav className="admin-sidebar-nav" aria-label="Admin sections">
+          {adminNavItems.map(({ id, label, Icon }) => (
+            <button
+              className={activeSection === id ? 'active' : ''}
+              key={id}
+              type="button"
+              aria-current={activeSection === id ? 'page' : undefined}
+              onClick={() => handleAdminNavClick(id)}
+            >
+              <Icon aria-hidden />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <AdminLogout onCleanup={cleanupAdminState} />
+      </aside>
+
+      <div className="admin-main">
+        <header className="admin-topbar">
+          <button
+            className="admin-icon-button menu-button"
+            type="button"
+            aria-label="Open admin menu"
+            aria-expanded={sidebarOpen}
+            onClick={() => setSidebarOpen(true)}
+          >
+            <FiMenu aria-hidden />
+          </button>
+
+          <label className="admin-search">
+            <FiSearch aria-hidden />
+            <span className="sr-only">Search admin dashboard</span>
+            <input
+              type="search"
+              placeholder={searchPlaceholder}
+              value={adminSearchTerm}
+              onChange={(event) => setAdminSearchTerm(event.target.value)}
+            />
+          </label>
+
+          <div className="admin-topbar-actions">
+            <button
+              className="admin-icon-button notification-button"
+              type="button"
+              aria-label={`${notificationCount} notifications`}
+              onClick={() => toast.info(`${pendingOrders} pending orders and ${reviews.length} reviews`)}
+            >
+              <FiBell aria-hidden />
+              <span>{notificationCount}</span>
+            </button>
+
+            <button
+              className="admin-icon-button"
+              type="button"
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={() => setDarkMode((enabled) => !enabled)}
+            >
+              {darkMode ? <FiSun aria-hidden /> : <FiMoon aria-hidden />}
+            </button>
+
+            <div className="admin-profile-menu" ref={profileMenuRef}>
+              <button
+                className="admin-profile-trigger"
+                type="button"
+                aria-label="Open admin profile menu"
+                aria-expanded={profileMenuOpen}
+                onClick={() => setProfileMenuOpen((open) => !open)}
+              >
+                <span className="admin-avatar small" aria-hidden>{adminInitial}</span>
+                <span>{adminName}</span>
+                <FiChevronDown aria-hidden />
+              </button>
+
+              {profileMenuOpen && (
+                <div className="admin-profile-dropdown" role="menu" aria-label="Admin profile menu">
+                  <strong>{adminName}</strong>
+                  <span>{adminEmail}</span>
+                  <AdminLogout onCleanup={cleanupAdminState} />
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <main className="admin-content">
+          <div className="section-heading admin-heading-row">
+            <div>
+              <p className="eyebrow">Admin</p>
+              <h1>Dashboard</h1>
+              <p>Manage products, users, orders, reviews, and store activity from one place.</p>
+            </div>
+          </div>
+
+          <MessageBox notice={notice} onClose={() => setNotice(null)} />
 
       <motion.section
+        id="dashboard-section"
         className="dashboard-grid admin-metrics-grid"
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
@@ -246,6 +609,7 @@ function AdminDashboard() {
       </motion.section>
 
       <motion.div
+        id="products-section"
         className="admin-layout"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -294,25 +658,13 @@ function AdminDashboard() {
 </label>
 
             <label>
-              Price
+              Default Price
               <input
                 name="price"
-                required
                 min="0"
+                placeholder="Optional fallback"
                 type="number"
                 value={formData.price}
-                onChange={handleInputChange}
-              />
-            </label>
-
-            <label>
-              Stock
-              <input
-                name="stock"
-                required
-                min="0"
-                type="number"
-                value={formData.stock}
                 onChange={handleInputChange}
               />
             </label>
@@ -329,24 +681,35 @@ function AdminDashboard() {
                 onChange={handleInputChange}
               />
             </label>
-
-            <label>
-  Sizes
-  <select
-    name="sizes"
-    required
-    value={formData.sizes}
-    onChange={handleInputChange}
-  >
-    <option value="">Select Size</option>
-    <option value="S">S</option>
-    <option value="M">M</option>
-    <option value="L">L</option>
-    <option value="XL">XL</option>
-    <option value="XXL">XXL</option>
-  </select>
-</label>
           </div>
+
+          <fieldset className="size-inventory-fieldset">
+            <legend>Size-wise Stock and Price</legend>
+            <p>Enter stock and price for every size you want to sell. Leave stock as 0 or blank to hide a size.</p>
+            <div className="size-inventory-grid">
+              {sizeOptions.map((size) => (
+                <label key={size}>
+                  <span>{size}</span>
+                  <input
+                    min="0"
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="Stock"
+                    value={formData.sizeInventory[size]}
+                    onChange={(event) => handleSizeInventoryChange(size, event.target.value)}
+                  />
+                  <input
+                    min="0"
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="Price"
+                    value={formData.sizePrices[size]}
+                    onChange={(event) => handleSizePriceChange(size, event.target.value)}
+                  />
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           <label>
             Description
@@ -402,6 +765,7 @@ function AdminDashboard() {
                   <th>Name</th>
                   <th>Category</th>
                   <th>Price</th>
+                  <th>Size Stock</th>
                   <th>Stock</th>
                   <th>Actions</th>
                 </tr>
@@ -419,7 +783,16 @@ function AdminDashboard() {
                     <td>{product.productCode || product.id.slice(0, 8)}</td>
                     <td>{product.name}</td>
                     <td>{product.category}</td>
-                    <td>₹ {Number(product.price).toLocaleString('en-IN')}</td>
+                    <td>Rs. {Number(product.price).toLocaleString('en-IN')}</td>
+                    <td>
+                      <div className="size-stock-tags">
+                        {getSizeInventoryEntries(product).map(([size, amount]) => (
+                          <span key={size}>
+                            {size}: {amount} / Rs. {getSizePrice(product, size).toLocaleString('en-IN')}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td>{product.stock}</td>
                     <td>
                       <div className="table-actions">
@@ -448,12 +821,142 @@ function AdminDashboard() {
         </div>
       </motion.div>
 
-      <OrderManagement onSummaryChange={setOrdersSummary} />
-      <ReviewManagement />
+      <div id="users-section" className="admin-panel users-panel">
+        <div className="admin-panel-heading">
+          <div>
+            <h2>Users</h2>
+            <p>Customer records shown with stack controls. Top item follows LIFO order.</p>
+          </div>
+          <strong>{users.length}</strong>
+        </div>
 
-      
+        {users.length > 0 ? (
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Mobile</th>
+                  <th>Password</th>
+                  <th>Role</th>
+                  <th>User Code</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.name || user.displayName || '-'}</td>
+                    <td>{user.email || '-'}</td>
+                    <td>
+                      {user.phone || '-'}
+                      {user.phoneVerified && <span className="table-subtext">OTP verified</span>}
+                    </td>
+                    <td>{user.passwordStatus || 'Secured in Firebase Auth'}</td>
+                    <td>{user.role || 'customer'}</td>
+                    <td>{user.userCode || user.id.slice(0, 8)}</td>
+                    <td>{formatDate(user.createdAt)}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button type="button" onClick={() => handleSendPasswordReset(user)}>
+                          Reset Password
+                        </button>
+                        <button type="button" onClick={() => handlePushUser(user)}>
+                          Push Stack
+                        </button>
+                        <button
+                          className="danger"
+                          type="button"
+                          disabled={user.id === currentUser.uid}
+                          onClick={() => handleRemoveUser(user)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="stack-panel">
+              <div className="admin-panel-heading">
+                <div>
+                  <h2>User Stack</h2>
+                  <p>LIFO view: the last pushed user appears first.</p>
+                </div>
+                <div className="table-actions">
+                  <button type="button" onClick={handlePopUser}>
+                    Pop
+                  </button>
+                  <button type="button" onClick={() => setUserStack([])}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {userStack.length === 0 ? (
+                <p className="empty-state">Stack is empty.</p>
+              ) : (
+                <ol className="user-stack-list">
+                  {userStack.slice().reverse().map((stackUser, index) => (
+                    <li key={stackUser.id}>
+                      <strong>{index === 0 ? 'Top' : `#${index + 1}`}</strong>
+                      <span>{stackUser.name || 'Unknown user'}</span>
+                      <small>{stackUser.email || stackUser.phone || stackUser.id}</small>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="empty-state">
+            <h2>No users found</h2>
+            <p>Users are loaded from the Firestore users collection.</p>
+          </div>
+        )}
+      </div>
+
+      <div id="orders-section" className="admin-section-anchor">
+        <OrderManagement onSummaryChange={setOrdersSummary} />
+      </div>
+      <div id="reviews-section" className="admin-section-anchor">
+        <ReviewManagement />
+      </div>
+
+        </main>
+      </div>
     </motion.section>
   )
+}
+
+function formatDate(value) {
+  if (!value) {
+    return '-'
+  }
+
+  if (value.toDate) {
+    return value.toDate().toLocaleString()
+  }
+
+  return String(value)
+}
+
+function getSizeInventoryEntries(product) {
+  if (product.sizeInventory && typeof product.sizeInventory === 'object') {
+    return sizeOptions
+      .filter((size) => Number(product.sizeInventory[size] || 0) > 0)
+      .map((size) => [size, Number(product.sizeInventory[size])])
+  }
+
+  if (Array.isArray(product.sizes)) {
+    return product.sizes.map((size) => [size, product.stock || 0])
+  }
+
+  return []
 }
 
 function MessageBox({ notice, onClose }) {
@@ -595,7 +1098,6 @@ function AdminAuth() {
             Register
           </button>
         </div>
-
         {message && <p className="success-message">{message}</p>}
         {error && <p className="error-box">{error}</p>}
 
@@ -674,3 +1176,4 @@ function getAdminAuthErrorMessage(code) {
 }
 
 export default AdminDashboard
+

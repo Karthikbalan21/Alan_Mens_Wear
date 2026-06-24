@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
+import { FiLogOut, FiMenu, FiShoppingBag, FiX } from 'react-icons/fi'
+import { toast } from 'react-toastify'
 import { useCart } from '../context/useCart'
 import { useAuth } from '../context/useAuth'
 
@@ -15,9 +17,11 @@ function Navbar() {
     try {
       await logout()
       setLogoutError('')
+      toast.success('Logged out successfully.')
       closeMenu()
     } catch (error) {
       setLogoutError(error.message)
+      toast.error(error.message)
     }
   }
 
@@ -35,15 +39,14 @@ function Navbar() {
           aria-expanded={isOpen}
           onClick={() => setIsOpen((open) => !open)}
         >
-          <span></span>
-          <span></span>
-          <span></span>
+          {isOpen ? <FiX aria-hidden="true" /> : <FiMenu aria-hidden="true" />}
         </button>
 
         <div className={`nav-links ${isOpen ? 'open' : ''}`}>
           <NavLink to="/" onClick={closeMenu}>Home</NavLink>
           <NavLink to="/products" onClick={closeMenu}>Products</NavLink>
           <NavLink to="/cart" onClick={closeMenu}>
+            <FiShoppingBag aria-hidden="true" />
             Cart{totalItems > 0 ? ` (${totalItems})` : ''}
           </NavLink>
           {currentUser && <NavLink to="/orders" onClick={closeMenu}>My Orders</NavLink>}
@@ -54,6 +57,7 @@ function Navbar() {
                 {userProfile?.name || currentUser.displayName || currentUser.email}
               </Link>
               <button className="logout-btn" type="button" onClick={handleLogout}>
+                <FiLogOut aria-hidden="true" />
                 Logout
               </button>
             </>

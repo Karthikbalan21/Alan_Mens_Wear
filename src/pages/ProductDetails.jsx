@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { FiShoppingCart } from 'react-icons/fi'
+import { toast } from 'react-toastify'
 import StarRating from '../components/StarRating'
 import { useCart } from '../context/useCart'
 import { getProduct } from '../services/productService'
 import { subscribeProductReviews } from '../services/reviewService'
+import { formatPrice, getSizePrice } from '../utils/productPricing'
 
 const fallbackReviews = [
   {
@@ -32,6 +35,7 @@ function ProductDetails() {
   const [message, setMessage] = useState('')
   const [reviews, setReviews] = useState([])
   const [quantity, setQuantity] = useState(1)
+  const [selectedSize, setSelectedSize] = useState('')
   const { addToCart } = useCart()
 
   useEffect(() => {
@@ -90,19 +94,28 @@ function ProductDetails() {
   }
 
   const increaseQuantity = () => {
-    setQuantity((current) => Math.min(Number(product.stock), current + 1))
+    setQuantity((current) => Math.min(availableStock, current + 1))
   }
 
   const handleAddToCart = async () => {
     setMessage('')
     setActionError('')
 
-    const result = await addToCart(product, quantity)
+    if (sizes.length > 0 && !selectedSize) {
+      const errorMessage = 'Select a size before adding this product to cart.'
+      setActionError(errorMessage)
+      toast.error(errorMessage)
+      return
+    }
+
+    const result = await addToCart(product, quantity, selectedSize)
 
     if (result.ok) {
       setMessage(result.message)
+      toast.success(result.message)
     } else {
       setActionError(result.message)
+      toast.error(result.message)
     }
   }
 
@@ -123,7 +136,15 @@ function ProductDetails() {
       percent: visibleReviews.length ? Math.round((count / visibleReviews.length) * 100) : 0,
     }
   })
-  const sizes = Array.isArray(product.sizes) ? product.sizes : []
+  const sizeInventory = getSizeInventory(product)
+  const sizePrices = getSizePrices(product)
+  const sizes = Object.keys(sizeInventory).filter((size) => Number(sizeInventory[size]) > 0)
+  const availableStock = selectedSize
+    ? Number(sizeInventory[selectedSize] || 0)
+    : Number(product.stock || 0)
+  const displayedPrice = selectedSize
+    ? `Rs. ${getSizePrice(product, selectedSize).toLocaleString('en-IN')}`
+    : formatPrice(product)
   const isOutOfStock = Number(product.stock) <= 0
 
   return (
@@ -144,9 +165,7 @@ function ProductDetails() {
             <span>{visibleReviews.length} Reviews</span>
           </div>
 
-          <p className="detail-price">
-            ₹ {Number(product.price).toLocaleString('en-IN')}
-          </p>
+          <p className="detail-price">{displayedPrice}</p>
           <p>{product.description}</p>
           {message && <p className="success-message">{message}</p>}
           {actionError && <p className="error-box">{actionError}</p>}
@@ -156,7 +175,7 @@ function ProductDetails() {
               className={
                 isOutOfStock
                   ? 'stock out-stock'
-                  : product.stock <= 8
+                    : product.stock <= 8
                     ? 'stock low-stock'
                     : 'stock'
               }
@@ -167,7 +186,19 @@ function ProductDetails() {
 
           <div className="size-row" aria-label="Available sizes">
             {sizes.map((size) => (
-              <button type="button" key={size}>{size}</button>
+              <button
+                className={selectedSize === size ? 'active' : ''}
+                type="button"
+                key={size}
+                onClick={() => {
+                  setSelectedSize(size)
+                  setQuantity(1)
+                }}
+              >
+                {size}
+                <small>{sizeInventory[size]} left</small>
+                <small>Rs. {Number(sizePrices[size] || product.price || 0).toLocaleString('en-IN')}</small>
+              </button>
             ))}
           </div>
 
@@ -180,7 +211,7 @@ function ProductDetails() {
               <strong>{quantity}</strong>
               <button
                 type="button"
-                disabled={quantity >= Number(product.stock)}
+                disabled={quantity >= availableStock}
                 onClick={increaseQuantity}
                 aria-label="Increase quantity"
               >
@@ -195,6 +226,7 @@ function ProductDetails() {
             type="button"
             onClick={handleAddToCart}
           >
+            {!isOutOfStock && <FiShoppingCart aria-hidden="true" />}
             {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
           </button>
         </div>
@@ -231,3 +263,32 @@ function ProductDetails() {
 }
 
 export default ProductDetails
+
+function getSizeInventory(product) {
+  if (product.sizeInventory && typeof product.sizeInventory === 'object') {
+    return product.sizeInventory
+  }
+
+  if (Array.isArray(product.sizes)) {
+    return product.sizes.reduce((inventory, size) => {
+      inventory[size] = Number(product.stock || 0)
+      return inventory
+    }, {})
+  }
+
+  return {}
+}
+
+function getSizePrices(product) {
+  if (product.sizePrices && typeof product.sizePrices === 'object') {
+    return product.sizePrices
+  }
+
+  const sizeInventory = getSizeInventory(product)
+
+  return Object.keys(sizeInventory).reduce((prices, size) => {
+    prices[size] = Number(product.price || 0)
+    return prices
+  }, {})
+}
+

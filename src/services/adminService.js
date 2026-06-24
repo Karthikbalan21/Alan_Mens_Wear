@@ -41,3 +41,11 @@ export async function deleteReview(reviewId) {
 
   await deleteDoc(doc(db, 'reviews', reviewId))
 }
+
+export async function deleteUserRecord(userId) {
+  if (!db) {
+    throw new Error('Firebase Firestore is not configured.')
+  }
+
+  await deleteDoc(doc(db, 'users', userId))
+}

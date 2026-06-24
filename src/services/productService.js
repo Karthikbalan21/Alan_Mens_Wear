@@ -14,6 +14,7 @@ import { db } from '../firebase'
 import { getNextProductCode } from './idService'
 
 const productsCollection = 'products'
+const defaultSizeOrder = ['S', 'M', 'L', 'XL', 'XXL']
 
 const ensureFirebaseReady = () => {
   if (!db) {
@@ -21,18 +22,82 @@ const ensureFirebaseReady = () => {
   }
 }
 
-const buildProductPayload = (product) => ({
-  name: product.name.trim(),
-  category: product.category.trim(),
-  price: Number(product.price),
-  stock: Number(product.stock),
-  rating: Number(product.rating || 0),
-  sizes: product.sizes
+const buildSizeInventory = (product) => {
+  if (product.sizeInventory && typeof product.sizeInventory === 'object') {
+    return Object.entries(product.sizeInventory).reduce((inventory, [size, amount]) => {
+      const normalizedSize = size.trim().toUpperCase()
+      const quantity = Number(amount || 0)
+
+      if (normalizedSize && quantity > 0) {
+        inventory[normalizedSize] = quantity
+      }
+
+      return inventory
+    }, {})
+  }
+
+  return String(product.sizes || '')
     .split(',')
-    .map((size) => size.trim())
-    .filter(Boolean),
-  description: product.description.trim(),
-})
+    .map((size) => size.trim().toUpperCase())
+    .filter(Boolean)
+    .reduce((inventory, size) => {
+      inventory[size] = Number(product.stock || 0)
+      return inventory
+    }, {})
+}
+
+const buildSizePrices = (product, sizeInventory) => {
+  const defaultPrice = Number(product.price || 0)
+
+  if (product.sizePrices && typeof product.sizePrices === 'object') {
+    return Object.keys(sizeInventory).reduce((prices, size) => {
+      const enteredPrice = Number(product.sizePrices[size] || 0)
+      const price = enteredPrice > 0 ? enteredPrice : defaultPrice
+
+      if (price > 0) {
+        prices[size] = price
+      }
+
+      return prices
+    }, {})
+  }
+
+  return Object.keys(sizeInventory).reduce((prices, size) => {
+    if (defaultPrice > 0) {
+      prices[size] = defaultPrice
+    }
+
+    return prices
+  }, {})
+}
+
+const buildProductPayload = (product) => {
+  const sizeInventory = buildSizeInventory(product)
+  const sizePrices = buildSizePrices(product, sizeInventory)
+  const sizes = defaultSizeOrder
+    .filter((size) => sizeInventory[size] > 0)
+    .concat(Object.keys(sizeInventory).filter((size) => !defaultSizeOrder.includes(size)))
+  const stock = Object.values(sizeInventory).reduce(
+    (total, quantity) => total + Number(quantity || 0),
+    0,
+  )
+  const activePrices = Object.values(sizePrices).filter((price) => Number(price || 0) > 0)
+  const productPrice = activePrices.length
+    ? Math.min(...activePrices)
+    : Number(product.price || 0)
+
+  return {
+    name: product.name.trim(),
+    category: product.category.trim(),
+    price: productPrice,
+    stock,
+    rating: Number(product.rating || 0),
+    sizes,
+    sizeInventory,
+    sizePrices,
+    description: product.description.trim(),
+  }
+}
 
 const loadImage = (sourceUrl) =>
   new Promise((resolve, reject) => {

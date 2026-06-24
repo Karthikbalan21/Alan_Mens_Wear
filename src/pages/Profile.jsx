@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { FiEdit3, FiLogOut, FiSave } from 'react-icons/fi'
+import { toast } from 'react-toastify'
 import { useAuth } from '../context/useAuth'
 import { subscribeUserOrders } from '../services/orderService'
 import { getUserReviews } from '../services/reviewService'
@@ -31,7 +33,10 @@ function Profile() {
     return subscribeUserOrders(
       currentUser.uid,
       (orderList) => setOrders(orderList),
-      (loadError) => setError(loadError.message),
+      (loadError) => {
+        setError(loadError.message)
+        toast.error(loadError.message)
+      },
     )
   }, [currentUser])
 
@@ -42,7 +47,10 @@ function Profile() {
 
     getUserReviews(currentUser.uid)
       .then(setReviews)
-      .catch((loadError) => setError(loadError.message))
+      .catch((loadError) => {
+        setError(loadError.message)
+        toast.error(loadError.message)
+      })
   }, [currentUser])
 
   useEffect(() => {
@@ -101,10 +109,21 @@ function Profile() {
       setPhotoFile(null)
       setEditing(false)
       setMessage('Profile updated successfully.')
+      toast.success('Profile updated successfully.')
     } catch (saveError) {
       setError(saveError.message)
+      toast.error(saveError.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      toast.success('Logged out successfully.')
+    } catch (logoutError) {
+      toast.error(logoutError.message)
     }
   }
 
@@ -166,6 +185,7 @@ function Profile() {
             <div className="admin-panel-heading">
               <h2>{profileCompletion}% Profile Complete</h2>
               <button className="text-button" type="button" onClick={() => setEditing((open) => !open)}>
+                <FiEdit3 aria-hidden="true" />
                 {editing ? 'Cancel' : 'Edit Profile'}
               </button>
             </div>
@@ -197,6 +217,7 @@ function Profile() {
                   <input accept="image/*" type="file" onChange={(event) => setPhotoFile(event.target.files[0])} />
                 </label>
                 <button className="btn primary" disabled={saving} type="submit">
+                  {!saving && <FiSave aria-hidden="true" />}
                   {saving ? 'Saving...' : 'Save Profile'}
                 </button>
               </motion.form>
@@ -207,8 +228,14 @@ function Profile() {
             <h2>Quick Actions</h2>
             <Link className="btn primary" to="/orders">My Orders</Link>
             <Link className="btn" to="/orders">My Reviews</Link>
-            <button className="btn" type="button" onClick={() => setEditing(true)}>Edit Profile</button>
-            <button className="btn secondary-dark" type="button" onClick={logout}>Logout</button>
+            <button className="btn" type="button" onClick={() => setEditing(true)}>
+              <FiEdit3 aria-hidden="true" />
+              Edit Profile
+            </button>
+            <button className="btn secondary-dark" type="button" onClick={handleLogout}>
+              <FiLogOut aria-hidden="true" />
+              Logout
+            </button>
           </article>
         </motion.div>
       </motion.div>

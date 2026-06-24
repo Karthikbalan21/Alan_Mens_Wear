@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { FiLogOut } from 'react-icons/fi'
+import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import ConfirmModal from './ConfirmModal'
@@ -12,15 +14,16 @@ function AdminLogout({ onCleanup }) {
 
   const handleConfirm = async () => {
     setIsLoading(true)
+
     try {
       await logout()
+      localStorage.clear()
+      sessionStorage.clear()
       if (typeof onCleanup === 'function') onCleanup()
       navigate('/admin/login', { replace: true, state: { successMessage: 'Logged out successfully' } })
+      toast.success('Logged out successfully.')
     } catch (err) {
-      // basic fallback error handling
-      // keep UI simple: alert (project has MessageBox in admin - handled by parent)
-      // eslint-disable-next-line no-alert
-      alert(err?.message || 'Unable to logout. Please try again.')
+      toast.error(err?.message || 'Unable to logout. Please try again.')
     } finally {
       setIsLoading(false)
       setOpen(false)
@@ -32,13 +35,12 @@ function AdminLogout({ onCleanup }) {
       <motion.button
         className="btn secondary admin-logout-btn"
         type="button"
+        aria-label="Logout from admin dashboard"
         onClick={() => setOpen(true)}
         whileHover={{ y: -2, scale: 1.02 }}
         whileTap={{ scale: 0.97 }}
       >
-        <span className="logout-icon" aria-hidden>
-          ⏻
-        </span>
+        <FiLogOut aria-hidden />
         Logout
       </motion.button>
 

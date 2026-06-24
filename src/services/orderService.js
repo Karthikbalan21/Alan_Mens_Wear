@@ -11,6 +11,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../firebase'
+import { getSizePrice } from '../utils/productPricing'
 
 const maxPaymentProofBytes = 650 * 1024
 const maxPaymentProofDimension = 1200
@@ -217,19 +218,15 @@ export async function placeOrder(cartItems, paymentProof, user, userProfile = {}
   }
 
   const orderItems = cartItems.map((item) => ({
-    productId: item.id,
-    productCode: item.productCode || item.id,
+    productId: item.productId || item.id,
+    productCode: item.productCode || item.productId || item.id,
     name: item.name,
     image: item.image || '',
     category: item.category || '',
+    selectedSize: item.selectedSize || '',
     price: Number(item.price),
     quantity: Number(item.quantity),
   }))
-
-  const totalAmount = orderItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0,
-  )
 
   return runTransaction(db, async (transaction) => {
     const productRefs = orderItems.map((item) => doc(db, 'products', item.productId))
@@ -246,27 +243,52 @@ export async function placeOrder(cartItems, paymentProof, user, userProfile = {}
         throw new Error(`${item.name} is no longer available.`)
       }
 
-      const currentStock = Number(productSnap.data().stock || 0)
+      const productData = productSnap.data()
+      const currentStock = getOrderItemStock(productData, item.selectedSize)
+      item.price = getSizePrice(productData, item.selectedSize)
 
       if (currentStock <= 0) {
-        throw new Error(`${item.name} is out of stock.`)
+        throw new Error(`${item.name}${item.selectedSize ? ` (${item.selectedSize})` : ''} is out of stock.`)
       }
 
       if (currentStock < item.quantity) {
         throw new Error(
-          `Only ${currentStock} item(s) left for ${item.name}. Please update your cart.`,
+          `Only ${currentStock} item(s) left for ${item.name}${item.selectedSize ? ` (${item.selectedSize})` : ''}. Please update your cart.`,
         )
       }
     })
 
+    const totalAmount = orderItems.reduce(
+      (total, item) => total + item.price * item.quantity,
+      0,
+    )
+
     productSnapshots.forEach((productSnap, index) => {
       const item = orderItems[index]
-      const nextStock = Number(productSnap.data().stock || 0) - item.quantity
-
-      transaction.update(productRefs[index], {
-        stock: nextStock,
+      const productData = productSnap.data()
+      const sizeInventory = productData.sizeInventory && typeof productData.sizeInventory === 'object'
+        ? { ...productData.sizeInventory }
+        : null
+      const currentStock = getOrderItemStock(productData, item.selectedSize)
+      const nextStock = currentStock - item.quantity
+      const updatePayload = {
+        stock: Number(productData.stock || 0) - item.quantity,
         updatedAt: serverTimestamp(),
-      })
+      }
+
+      if (item.selectedSize && sizeInventory) {
+        sizeInventory[item.selectedSize] = nextStock
+        updatePayload.sizeInventory = sizeInventory
+        updatePayload.sizes = Object.entries(sizeInventory)
+          .filter(([, amount]) => Number(amount || 0) > 0)
+          .map(([size]) => size)
+        updatePayload.stock = Object.values(sizeInventory).reduce(
+          (total, amount) => total + Number(amount || 0),
+          0,
+        )
+      }
+
+      transaction.update(productRefs[index], updatePayload)
     })
 
     const orderRef = doc(collection(db, 'orders'))
@@ -309,4 +331,12 @@ export async function placeOrder(cartItems, paymentProof, user, userProfile = {}
       updatedAt: new Date(),
     }
   })
+}
+
+function getOrderItemStock(productData, selectedSize = '') {
+  if (selectedSize && productData.sizeInventory && typeof productData.sizeInventory === 'object') {
+    return Number(productData.sizeInventory[selectedSize] || 0)
+  }
+
+  return Number(productData.stock || 0)
 }

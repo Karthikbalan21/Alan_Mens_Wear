@@ -5,7 +5,8 @@ import {
   setPersistence,
   signInWithEmailAndPassword,
 } from 'firebase/auth'
-import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { auth } from '../firebase'
 import { useAuth } from '../context/useAuth'
 
@@ -80,11 +81,14 @@ function AdminLogin() {
       )
       await signInWithEmailAndPassword(auth, formData.email, formData.password)
       setMessage('Login successful.')
+      toast.success('Admin login successful.')
       setFormData(initialForm)
       setPendingRedirect(true)
     } catch (error) {
       setMessage('')
-      setErrors({ form: getAuthErrorMessage(error.code) })
+      const errorMessage = getAuthErrorMessage(error.code)
+      setErrors({ form: errorMessage })
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -95,13 +99,15 @@ function AdminLogin() {
     if (!pendingRedirect) return
 
     if (currentUser && userProfile !== null) {
-      if (userProfile?.role === 'admin') {
-        navigate(redirectPath || '/admin', { replace: true })
-      } else {
-        setErrors({ form: 'You are not authorized to access the admin dashboard.' })
-      }
+      window.setTimeout(() => {
+        if (userProfile?.role === 'admin') {
+          navigate(redirectPath || '/admin', { replace: true })
+        } else {
+          setErrors({ form: 'You are not authorized to access the admin dashboard.' })
+        }
 
-      setPendingRedirect(false)
+        setPendingRedirect(false)
+      }, 0)
     }
   }, [pendingRedirect, currentUser, userProfile, redirectPath, navigate])
 

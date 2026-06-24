@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
 } from 'firebase/auth'
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { auth } from '../firebase'
 import { useAuth } from '../context/useAuth'
 
@@ -80,12 +81,14 @@ function Login() {
       )
       await signInWithEmailAndPassword(auth, formData.email, formData.password)
       setMessage('Login successful.')
-      setFormData(initialForm)
+      toast.success('Login successful.')
       // mark that we should redirect once auth/profile is ready
       setPendingRedirect(true)
     } catch (error) {
       setMessage('')
-      setErrors({ form: getAuthErrorMessage(error.code) })
+      const errorMessage = getAuthErrorMessage(error.code)
+      setErrors({ form: errorMessage })
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -97,18 +100,21 @@ function Login() {
 
     // If user signed in and profile has loaded (could be null if not found)
     if (currentUser && userProfile !== null) {
-      // If redirecting to admin, ensure profile role is admin
-      if (redirectPath.startsWith('/admin')) {
-        if (userProfile?.role === 'admin') {
-          navigate(redirectPath, { replace: true })
+      window.setTimeout(() => {
+        // If redirecting to admin, ensure profile role is admin
+        if (redirectPath.startsWith('/admin')) {
+          if (userProfile?.role === 'admin') {
+            navigate(redirectPath, { replace: true })
+          } else {
+            setErrors({ form: 'You are not authorized to access the admin dashboard.' })
+          }
         } else {
-          setErrors({ form: 'You are not authorized to access the admin dashboard.' })
+          navigate(redirectPath, { replace: true })
         }
-      } else {
-        navigate(redirectPath, { replace: true })
-      }
 
-      setPendingRedirect(false)
+        setFormData(initialForm)
+        setPendingRedirect(false)
+      }, 0)
     }
   }, [pendingRedirect, currentUser, userProfile, redirectPath, navigate])
 
@@ -179,6 +185,7 @@ function Login() {
     </section>
   )
 }
+
 function getRedirectPath(path) {
   if (path?.startsWith('/') && !path.startsWith('//')) {
     return path

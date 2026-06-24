@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import StarRating from '../components/StarRating'
 import { getProducts } from '../services/productService'
+import { formatPrice } from '../utils/productPricing'
 
 function Products() {
   const [products, setProducts] = useState([])
@@ -94,9 +95,7 @@ function Products() {
                   <StarRating value={product.rating || 0} />
                   <span>{Number(product.rating || 0).toFixed(1)} avg</span>
                 </div>
-                <p className="price">
-                  ₹ {Number(product.price).toLocaleString('en-IN')}
-                </p>
+                <p className="price">{formatPrice(product)}</p>
                 <p
                   className={
                     Number(product.stock) <= 0
@@ -132,3 +131,4 @@ function Products() {
 }
 
 export default Products
+

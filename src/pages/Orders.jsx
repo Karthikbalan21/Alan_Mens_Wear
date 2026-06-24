@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { FiDownload, FiNavigation, FiStar } from 'react-icons/fi'
+import { toast } from 'react-toastify'
 import StarRating from '../components/StarRating'
 import { useAuth } from '../context/useAuth'
 import { downloadInvoice } from '../services/invoiceService'
@@ -37,6 +39,7 @@ function Orders() {
       },
       (loadError) => {
         setError(loadError.message)
+        toast.error(loadError.message)
         setLoading(false)
       },
     )
@@ -88,11 +91,13 @@ function Orders() {
         review: reviewText,
       })
       setMessage('Review submitted successfully.')
+      toast.success('Review submitted successfully.')
       setActiveReviewKey('')
       setReviewText('')
       setRating(5)
     } catch (reviewError) {
       setError(reviewError.message)
+      toast.error(reviewError.message)
     } finally {
       setSavingReview(false)
     }
@@ -159,6 +164,7 @@ function Orders() {
                           type="button"
                           onClick={() => setActiveReviewKey(reviewKey)}
                         >
+                          <FiStar aria-hidden="true" />
                           Rate Product
                         </button>
                       )}
@@ -189,9 +195,11 @@ function Orders() {
 
               <div className="order-actions">
                 <button className="btn small" type="button" onClick={() => downloadInvoice(order)}>
+                  <FiDownload aria-hidden="true" />
                   View Details
                 </button>
                 <button className="btn small" type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                  <FiNavigation aria-hidden="true" />
                   Track Order
                 </button>
               </div>

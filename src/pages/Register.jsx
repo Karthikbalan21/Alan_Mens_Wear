@@ -2,12 +2,16 @@ import { useState } from 'react'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { FiEye, FiEyeOff, FiUserPlus } from 'react-icons/fi'
+import { toast } from 'react-toastify'
 import { auth, db } from '../firebase'
 import { getNextUserCode } from '../services/idService'
+import { isValidPhoneNumber, normalizePhoneNumber } from '../services/otpService'
 
 const initialForm = {
   name: '',
   email: '',
+  phone: '',
   password: '',
   confirmPassword: '',
 }
@@ -44,6 +48,12 @@ function Register() {
       nextErrors.email = 'Enter a valid email address.'
     }
 
+    if (!formData.phone.trim()) {
+      nextErrors.phone = 'Mobile number is required.'
+    } else if (!isValidPhoneNumber(formData.phone)) {
+      nextErrors.phone = 'Use a valid mobile number, like +919876543210.'
+    }
+
     if (!formData.password) {
       nextErrors.password = 'Password is required.'
     } else if (formData.password.length < 6) {
@@ -64,6 +74,7 @@ function Register() {
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
       setMessage('')
+      toast.error('Please fix the highlighted registration fields.')
       return
     }
 
@@ -72,6 +83,7 @@ function Register() {
       setErrors({
         form: 'Firebase is not configured. Add your Firebase web app values to a .env file.',
       })
+      toast.error('Firebase is not configured.')
       return
     }
 
@@ -89,21 +101,28 @@ function Register() {
       })
 
       const userCode = await getNextUserCode()
+      const phone = normalizePhoneNumber(formData.phone)
 
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         userCode,
         name: formData.name,
         email: formData.email,
+        phone,
+        phoneVerified: false,
+        passwordStatus: 'Stored securely in Firebase Auth',
         role: 'customer',
         createdAt: serverTimestamp(),
       })
 
       setMessage('Account created successfully.')
+      toast.success('Account created successfully.')
       setFormData(initialForm)
       setTimeout(() => navigate(redirectPath), 700)
     } catch (error) {
       setMessage('')
-      setErrors({ form: getAuthErrorMessage(error.code) })
+      const errorMessage = getAuthErrorMessage(error.code)
+      setErrors({ form: errorMessage })
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -122,7 +141,7 @@ function Register() {
         <div className="auth-steps" aria-hidden="true">
           <span className={formData.name ? 'active' : ''}></span>
           <span className={formData.email ? 'active' : ''}></span>
-          <span className={formData.password.length >= 6 ? 'active' : ''}></span>
+          <span className={formData.phone ? 'active' : ''}></span>
         </div>
 
         {message && <p className="success-message">{message}</p>}
@@ -155,6 +174,19 @@ function Register() {
         </label>
 
         <label>
+          Mobile Number
+          <input
+            className={errors.phone ? 'input-error' : ''}
+            type="tel"
+            name="phone"
+            placeholder="+919876543210"
+            value={formData.phone}
+            onChange={handleChange}
+          />
+          {errors.phone && <span className="error-message">{errors.phone}</span>}
+        </label>
+
+        <label>
           Password
           <div className="password-field">
             <input
@@ -166,6 +198,7 @@ function Register() {
               onChange={handleChange}
             />
             <button type="button" onClick={() => setShowPassword((visible) => !visible)}>
+              {showPassword ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
               {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
@@ -190,6 +223,7 @@ function Register() {
         </label>
 
         <button className="btn primary" type="submit" disabled={isSubmitting}>
+          {!isSubmitting && <FiUserPlus aria-hidden="true" />}
           {isSubmitting ? <span className="loading-spinner">Creating account...</span> : 'Create Account'}
         </button>
         <p>

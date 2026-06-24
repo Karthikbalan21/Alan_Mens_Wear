@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import QRCode from 'qrcode'
+import { FiCheckCircle, FiDownload, FiFileText, FiMinus, FiPlus, FiShoppingBag, FiTrash2, FiUploadCloud } from 'react-icons/fi'
+import { HiSparkles } from 'react-icons/hi2'
+import { toast } from 'react-toastify'
 import { useAuth } from '../context/useAuth'
 import { useCart } from '../context/useCart'
 import { downloadInvoice } from '../services/invoiceService'
@@ -29,6 +32,18 @@ function Cart() {
     cartError,
     syncCartProducts,
   } = useCart()
+  const paymentPreviewUrl = useMemo(
+    () => (paymentScreenshot ? URL.createObjectURL(paymentScreenshot) : ''),
+    [paymentScreenshot],
+  )
+
+  useEffect(() => (
+    () => {
+      if (paymentPreviewUrl) {
+        URL.revokeObjectURL(paymentPreviewUrl)
+      }
+    }
+  ), [paymentPreviewUrl])
 
   useEffect(() => {
     const loadCartItems = async () => {
@@ -57,14 +72,17 @@ function Cart() {
     }
 
     if (!validPaymentImageTypes.includes(file.type)) {
+      const errorMessage = 'Upload a valid payment screenshot: JPG, PNG, or WEBP.'
       setPaymentScreenshot(null)
-      setError('Upload a valid payment screenshot: JPG, PNG, or WEBP.')
+      setError(errorMessage)
+      toast.error(errorMessage)
       event.target.value = ''
       return
     }
 
     setError('')
     setPaymentScreenshot(file)
+    toast.success('Payment screenshot selected.')
   }
 
   const handlePlaceOrder = async () => {
@@ -86,6 +104,7 @@ function Cart() {
         paymentScreenshot,
         setUploadProgress,
       )
+      toast.success('Payment proof uploaded.')
 
       const order = await placeOrder(cartItems, paymentProof, currentUser, userProfile)
       await clearCart()
@@ -94,8 +113,10 @@ function Cart() {
       setLatestOrder(order)
       downloadInvoice(order)
       setMessage('Order placed successfully. Track status from My Orders.')
+      toast.success('Order placed successfully.')
     } catch (orderError) {
       setError(orderError.message)
+      toast.error(orderError.message)
     } finally {
       setPlacingOrder(false)
     }
@@ -162,6 +183,7 @@ function Cart() {
           type="button"
           onClick={() => downloadInvoice(latestOrder)}
         >
+          <FiDownload aria-hidden="true" />
           Download Invoice
         </button>
       )}
@@ -180,6 +202,7 @@ function Cart() {
                 <div className="cart-item-info">
                   <p className="category">{item.category}</p>
                   <h3>{item.name}</h3>
+                  {item.selectedSize && <p className="cart-size">Size: {item.selectedSize}</p>}
                   <p className={item.stock <= 0 ? 'cart-stock out-stock' : 'cart-stock'}>
                     {item.stock <= 0 ? 'Out of Stock' : `Available Stock: ${item.stock}`}
                   </p>
@@ -193,11 +216,14 @@ function Cart() {
                       disabled={item.quantity <= 1}
                       onClick={async () => {
                         const result = await updateQuantity(item.id, -1)
-                        if (!result.ok) setError(result.message)
+                        if (!result.ok) {
+                          setError(result.message)
+                          toast.error(result.message)
+                        }
                       }}
                       aria-label="Decrease quantity"
                     >
-                      -
+                      <FiMinus aria-hidden="true" />
                     </button>
                     <strong>{item.quantity}</strong>
                     <button
@@ -205,11 +231,14 @@ function Cart() {
                       disabled={item.quantity >= item.stock}
                       onClick={async () => {
                         const result = await updateQuantity(item.id, 1)
-                        if (!result.ok) setError(result.message)
+                        if (!result.ok) {
+                          setError(result.message)
+                          toast.error(result.message)
+                        }
                       }}
                       aria-label="Increase quantity"
                     >
-                      +
+                      <FiPlus aria-hidden="true" />
                     </button>
                   </div>
 
@@ -220,8 +249,17 @@ function Cart() {
                   <button
                     className="remove-btn"
                     type="button"
-                    onClick={() => removeItem(item.id)}
+                    onClick={async () => {
+                      try {
+                        await removeItem(item.id)
+                        toast.info(`${item.name} removed from cart.`)
+                      } catch (removeError) {
+                        setError(removeError.message)
+                        toast.error(removeError.message)
+                      }
+                    }}
                   >
+                    <FiTrash2 aria-hidden="true" />
                     Remove
                   </button>
                 </div>
@@ -249,17 +287,38 @@ function Cart() {
               <span>The QR includes the exact cart total.</span>
             </div>
 
-            <label className="payment-upload">
-              Payment Screenshot
+            <label className={`payment-upload ${paymentScreenshot ? 'is-ready' : ''}`}>
+              <span className="payment-upload-heading">
+                <FiUploadCloud aria-hidden="true" />
+                Payment Screenshot
+              </span>
               <input
                 accept="image/png,image/jpeg,image/webp"
                 type="file"
                 onChange={handlePaymentScreenshotChange}
               />
+              <span>Upload JPG, PNG, or WEBP proof after payment.</span>
             </label>
 
             {paymentScreenshot && (
-              <p className="payment-file">Selected: {paymentScreenshot.name}</p>
+              <div className="payment-proof-ready">
+                <div className="payment-proof-preview">
+                  {paymentPreviewUrl ? (
+                    <img src={paymentPreviewUrl} alt="Selected payment screenshot preview" />
+                  ) : (
+                    <FiFileText aria-hidden="true" />
+                  )}
+                  <span className="sparkle sparkle-one"><HiSparkles aria-hidden="true" /></span>
+                  <span className="sparkle sparkle-two"><HiSparkles aria-hidden="true" /></span>
+                </div>
+                <div>
+                  <p className="payment-file">
+                    <FiCheckCircle aria-hidden="true" />
+                    {paymentScreenshot.name}
+                  </p>
+                  <span>Ready to upload with your order.</span>
+                </div>
+              </div>
             )}
 
             {placingOrder && (
@@ -280,6 +339,7 @@ function Cart() {
               type="button"
               onClick={handlePlaceOrder}
             >
+              {!placingOrder && currentUser && <FiShoppingBag aria-hidden="true" />}
               {placingOrder
                 ? 'Placing Order...'
                 : currentUser

@@ -4,6 +4,7 @@ import { motion, useInView } from 'framer-motion'
 import StarRating from '../components/StarRating'
 import { getProducts } from '../services/productService'
 import { subscribeLatestReviews } from '../services/reviewService'
+import { formatPrice } from '../utils/productPricing'
 
 const categories = [
   {
@@ -98,8 +99,8 @@ function Home() {
 
   useEffect(() => {
     if (!reviews.length) {
-      setActiveReview(0)
-      return undefined
+      const timeoutId = window.setTimeout(() => setActiveReview(0), 0)
+      return () => window.clearTimeout(timeoutId)
     }
 
     const intervalId = window.setInterval(() => {
@@ -218,9 +219,7 @@ function Home() {
                 <h3>{product.name}</h3>
                 <p>{product.description}</p>
                 <StarRating value={product.rating || 0} />
-                <p className="price">
-                  Rs. {Number(product.price).toLocaleString('en-IN')}
-                </p>
+                <p className="price">{formatPrice(product)}</p>
                 <Link className="btn small" to={`/products/${product.id}`}>View Details</Link>
               </div>
             </motion.article>
