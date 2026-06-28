@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from 'firebase/auth'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { motion } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
   FiBell,
+  FiBarChart2,
   FiChevronDown,
   FiGrid,
   FiMenu,
@@ -26,10 +27,12 @@ import {
 } from '../services/productService'
 import { useAuth } from '../context/useAuth'
 import { auth, db } from '../firebase'
-import { deleteUserRecord, subscribeAdminReviews, subscribeAdminUsers } from '../services/adminService'
+import { subscribeAdminReviews, subscribeAdminUsers } from '../services/adminService'
 import { getNextUserCode } from '../services/idService'
 import OrderManagement from './OrderManagement'
 import ReviewManagement from './ReviewManagement'
+import SalesReport from './sales-report/SalesReport'
+import CustomerManagement from './customer-management/CustomerManagement'
 import AdminLogout from '../components/AdminLogout'
 import { getSizePrice } from '../utils/productPricing'
 
@@ -66,8 +69,9 @@ const emptyAuthForm = {
 const adminNavItems = [
   { id: 'dashboard-section', label: 'Dashboard', path: '/admin#dashboard-section', Icon: FiGrid },
   { id: 'products-section', label: 'Products', path: '/admin#products-section', Icon: FiPackage },
-  { id: 'users-section', label: 'Users', path: '/admin#users-section', Icon: FiUsers },
+  { id: 'users-section', label: 'Customers', path: '/admin#users-section', Icon: FiUsers },
   { id: 'orders-section', label: 'Order Management', path: '/admin#orders-section', Icon: FiShoppingBag },
+  { id: 'sales-report-section', label: 'Sales Report', path: '/admin#sales-report-section', Icon: FiBarChart2 },
   { id: 'reviews-section', label: 'Customer Reviews', path: '/admin#reviews-section', Icon: FiStar },
 ]
 
@@ -79,7 +83,6 @@ function AdminDashboard() {
   const [users, setUsers] = useState([])
   const [ordersSummary, setOrdersSummary] = useState(null)
   const [reviews, setReviews] = useState([])
-  const [userStack, setUserStack] = useState([])
   const [formData, setFormData] = useState(emptyForm)
   const [imageFile, setImageFile] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
@@ -131,10 +134,7 @@ function AdminDashboard() {
     }
 
     const unsubscribeUsers = subscribeAdminUsers(
-      (userList) => {
-        setUsers(userList)
-        setUserStack(userList)
-      },
+      (userList) => setUsers(userList),
       (loadError) => showNotice('error', loadError.message),
     )
     const unsubscribeReviews = subscribeAdminReviews(
@@ -342,7 +342,7 @@ function AdminDashboard() {
 
     try {
       setNotice(null)
-      await deleteProduct(product.id)
+      await deleteProduct(product)
       showNotice('success', 'Product deleted successfully.')
       await loadProducts()
     } catch (deleteError) {
@@ -350,67 +350,11 @@ function AdminDashboard() {
     }
   }
 
-  const handleSendPasswordReset = async (user) => {
-    if (!user.email) {
-      showNotice('error', 'This user does not have an email address.')
-      return
-    }
-
-    try {
-      setNotice(null)
-      await sendPasswordResetEmail(auth, user.email)
-      showNotice('success', `Password reset email sent to ${user.email}`)
-    } catch (resetError) {
-      showNotice('error', resetError.message)
-    }
-  }
-
-  const handleRemoveUser = async (user) => {
-    if (user.id === currentUser.uid) {
-      showNotice('error', 'You cannot remove your own admin profile here.')
-      return
-    }
-
-    const confirmed = window.confirm(`Remove ${user.email || user.name || 'this user'} from admin records?`)
-
-    if (!confirmed) {
-      return
-    }
-
-    try {
-      setNotice(null)
-      await deleteUserRecord(user.id)
-      setUserStack((currentStack) => currentStack.filter((stackUser) => stackUser.id !== user.id))
-      showNotice('success', 'User record removed successfully.')
-    } catch (deleteError) {
-      showNotice('error', deleteError.message)
-    }
-  }
-
-  const handlePushUser = (user) => {
-    setUserStack((currentStack) => [...currentStack.filter((stackUser) => stackUser.id !== user.id), user])
-    showNotice('success', `Pushed ${user.email || user.name} onto stack`)
-  }
-
-  const handlePopUser = () => {
-    setUserStack((currentStack) => {
-      if (currentStack.length === 0) {
-        showNotice('error', 'Stack is empty.')
-        return currentStack
-      }
-
-      const poppedUser = currentStack[currentStack.length - 1]
-      showNotice('success', `Popped ${poppedUser.email || poppedUser.name} from stack`)
-      return currentStack.slice(0, -1)
-    })
-  }
-
   const cleanupAdminState = () => {
     setProducts([])
     setUsers([])
     setOrdersSummary(null)
     setReviews([])
-    setUserStack([])
     resetForm()
   }
 
@@ -433,11 +377,12 @@ function AdminDashboard() {
   const averageRating = reviews.length
     ? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length
     : 0
+  const customerUsers = getCustomerUsers(users)
   const adminName = userProfile?.name || currentUser.displayName || 'Admin'
   const adminEmail = currentUser.email || userProfile?.email || 'admin@alanmenswear.com'
   const adminInitial = adminName.trim().charAt(0).toUpperCase() || 'A'
   const notificationCount = pendingOrders + reviews.length
-  const searchPlaceholder = `Search ${products.length} products, ${users.length} users, ${totalOrders} orders`
+  const searchPlaceholder = `Search ${products.length} products, ${customerUsers.length} customers, ${totalOrders} orders`
 
   return (
     <motion.section
@@ -587,7 +532,7 @@ function AdminDashboard() {
       >
         {[
           ['Total Products', products.length],
-          ['Total Users', users.length],
+          ['Total Customers', customerUsers.length],
           ['Total Orders', totalOrders],
           ['Delivered Orders', deliveredOrders],
           ['Pending Orders', pendingOrders],
@@ -821,107 +766,15 @@ function AdminDashboard() {
         </div>
       </motion.div>
 
-      <div id="users-section" className="admin-panel users-panel">
-        <div className="admin-panel-heading">
-          <div>
-            <h2>Users</h2>
-            <p>Customer records shown with stack controls. Top item follows LIFO order.</p>
-          </div>
-          <strong>{users.length}</strong>
-        </div>
-
-        {users.length > 0 ? (
-          <>
-            <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Mobile</th>
-                  <th>Password</th>
-                  <th>Role</th>
-                  <th>User Code</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.name || user.displayName || '-'}</td>
-                    <td>{user.email || '-'}</td>
-                    <td>
-                      {user.phone || '-'}
-                      {user.phoneVerified && <span className="table-subtext">OTP verified</span>}
-                    </td>
-                    <td>{user.passwordStatus || 'Secured in Firebase Auth'}</td>
-                    <td>{user.role || 'customer'}</td>
-                    <td>{user.userCode || user.id.slice(0, 8)}</td>
-                    <td>{formatDate(user.createdAt)}</td>
-                    <td>
-                      <div className="table-actions">
-                        <button type="button" onClick={() => handleSendPasswordReset(user)}>
-                          Reset Password
-                        </button>
-                        <button type="button" onClick={() => handlePushUser(user)}>
-                          Push Stack
-                        </button>
-                        <button
-                          className="danger"
-                          type="button"
-                          disabled={user.id === currentUser.uid}
-                          onClick={() => handleRemoveUser(user)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="stack-panel">
-              <div className="admin-panel-heading">
-                <div>
-                  <h2>User Stack</h2>
-                  <p>LIFO view: the last pushed user appears first.</p>
-                </div>
-                <div className="table-actions">
-                  <button type="button" onClick={handlePopUser}>
-                    Pop
-                  </button>
-                  <button type="button" onClick={() => setUserStack([])}>
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {userStack.length === 0 ? (
-                <p className="empty-state">Stack is empty.</p>
-              ) : (
-                <ol className="user-stack-list">
-                  {userStack.slice().reverse().map((stackUser, index) => (
-                    <li key={stackUser.id}>
-                      <strong>{index === 0 ? 'Top' : `#${index + 1}`}</strong>
-                      <span>{stackUser.name || 'Unknown user'}</span>
-                      <small>{stackUser.email || stackUser.phone || stackUser.id}</small>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="empty-state">
-            <h2>No users found</h2>
-            <p>Users are loaded from the Firestore users collection.</p>
-          </div>
-        )}
+      <div id="users-section" className="admin-section-anchor">
+        <CustomerManagement />
       </div>
 
       <div id="orders-section" className="admin-section-anchor">
         <OrderManagement onSummaryChange={setOrdersSummary} />
+      </div>
+      <div id="sales-report-section" className="admin-section-anchor">
+        <SalesReport />
       </div>
       <div id="reviews-section" className="admin-section-anchor">
         <ReviewManagement />
@@ -931,18 +784,6 @@ function AdminDashboard() {
       </div>
     </motion.section>
   )
-}
-
-function formatDate(value) {
-  if (!value) {
-    return '-'
-  }
-
-  if (value.toDate) {
-    return value.toDate().toLocaleString()
-  }
-
-  return String(value)
 }
 
 function getSizeInventoryEntries(product) {
@@ -1175,5 +1016,8 @@ function getAdminAuthErrorMessage(code) {
   return 'Unable to continue. Please check your Firebase setup and try again.'
 }
 
-export default AdminDashboard
+function getCustomerUsers(users) {
+  return users.filter((user) => (user.role || 'customer').toLowerCase() === 'customer')
+}
 
+export default AdminDashboard

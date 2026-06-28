@@ -10,7 +10,8 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
-import { db } from '../firebase'
+import { deleteObject, ref } from 'firebase/storage'
+import { db, storage } from '../firebase'
 import { getNextProductCode } from './idService'
 
 const productsCollection = 'products'
@@ -209,8 +210,21 @@ export async function updateProduct(productId, product, imageFile) {
   await updateDoc(doc(db, productsCollection, productId), updates)
 }
 
-export async function deleteProduct(productId) {
+export async function deleteProduct(product) {
   ensureFirebaseReady()
 
+  const productId = typeof product === 'string' ? product : product.id
+  const imagePath = typeof product === 'string' ? null : product.imagePath
+
   await deleteDoc(doc(db, productsCollection, productId))
+
+  if (storage && imagePath) {
+    try {
+      await deleteObject(ref(storage, imagePath))
+    } catch (error) {
+      if (error.code !== 'storage/object-not-found') {
+        throw error
+      }
+    }
+  }
 }

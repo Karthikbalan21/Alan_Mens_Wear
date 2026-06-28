@@ -17,38 +17,35 @@ import ForgotPassword from './pages/ForgotPassword'
 import AdminDashboard from './admin/AdminDashboard.jsx'
 import './App.css'
 
+function RequireAdminRoute({ children }) {
+  const { currentUser, userProfile, loading } = useAuth()
+  const locationRef = useLocation()
+
+  if (loading || (currentUser && userProfile === null)) {
+    return (
+      <section className="container page-section centered">
+        <h1>Checking admin access...</h1>
+      </section>
+    )
+  }
+
+  if (!currentUser || userProfile?.role !== 'admin') {
+    return <Navigate to={`/admin/login?redirect=${encodeURIComponent(locationRef.pathname)}`} replace />
+  }
+
+  return children
+}
+
 function App() {
   const location = useLocation()
   const { pathname } = location
   const isAdminRoute = pathname.startsWith('/admin')
-  
-  function RequireAdminRoute({ children }) {
-    const { currentUser, userProfile, loading } = useAuth()
-    const locationRef = useLocation()
-
-    // If auth is still initializing or we have a signed-in user but no profile yet,
-    // show a brief checking state so we don't redirect prematurely before the
-    // user's profile (and role) is loaded from Firestore.
-    if (loading || (currentUser && userProfile === null)) {
-      return (
-        <section className="container page-section centered">
-          <h1>Checking admin access...</h1>
-        </section>
-      )
-    }
-
-    if (!currentUser || userProfile?.role !== 'admin') {
-      return <Navigate to={`/admin/login?redirect=${encodeURIComponent(locationRef.pathname)}`} replace />
-    }
-
-    return children
-  }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isAdminRoute ? 'admin-app-shell' : 'user-app-shell'}`}>
       <ScrollToTop />
       {!isAdminRoute && <Navbar />}
-      <main>
+      <main className={isAdminRoute ? 'admin-main-shell' : 'user-main'}>
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}

@@ -49,6 +49,7 @@ function Navbar() {
             <FiShoppingBag aria-hidden="true" />
             Cart{totalItems > 0 ? ` (${totalItems})` : ''}
           </NavLink>
+          
           {currentUser && <NavLink to="/orders" onClick={closeMenu}>My Orders</NavLink>}
           {currentUser && <NavLink to="/profile" onClick={closeMenu}>Profile</NavLink>}
           {currentUser ? (

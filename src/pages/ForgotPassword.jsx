@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { sendPasswordResetEmail } from 'firebase/auth'
+import { fetchSignInMethodsForEmail, sendPasswordResetEmail } from 'firebase/auth'
 import { Link } from 'react-router-dom'
 import { FiSend } from 'react-icons/fi'
 import { toast } from 'react-toastify'
@@ -9,11 +9,14 @@ function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    if (!email.trim()) {
+    const normalizedEmail = email.trim().toLowerCase()
+
+    if (!normalizedEmail) {
       const errorMessage = 'Email is required.'
       setError(errorMessage)
       setMessage('')
@@ -21,7 +24,7 @@ function ForgotPassword() {
       return
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       const errorMessage = 'Enter a valid email address.'
       setError(errorMessage)
       setMessage('')
@@ -38,9 +41,23 @@ function ForgotPassword() {
     }
 
     try {
-      await sendPasswordResetEmail(auth, email)
+      setIsSubmitting(true)
+      const signInMethods = await fetchSignInMethodsForEmail(auth, normalizedEmail)
+
+      if (signInMethods.length === 0) {
+        const errorMessage = 'No account found with this email. Use the email you registered with.'
+        setError(errorMessage)
+        setMessage('')
+        toast.error(errorMessage)
+        return
+      }
+
+      await sendPasswordResetEmail(auth, normalizedEmail, {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: false,
+      })
       setError('')
-      setMessage('Password reset link sent. Please check your email.')
+      setMessage(`Password reset link sent to ${normalizedEmail}. Please check Inbox and Spam.`)
       toast.success('Password reset link sent.')
       setEmail('')
     } catch (firebaseError) {
@@ -48,6 +65,8 @@ function ForgotPassword() {
       const errorMessage = getResetErrorMessage(firebaseError.code)
       setError(errorMessage)
       toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -75,9 +94,15 @@ function ForgotPassword() {
           />
         </label>
 
-        <button className="btn primary" type="submit">
-          <FiSend aria-hidden="true" />
-          Send Reset Link
+        <button className="btn primary" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <span className="loading-spinner">Sending...</span>
+          ) : (
+            <>
+              <FiSend aria-hidden="true" />
+              Send Reset Link
+            </>
+          )}
         </button>
         <p>Remembered it? <Link to="/login">Back to login</Link></p>
       </form>
@@ -92,6 +117,18 @@ function getResetErrorMessage(code) {
 
   if (code === 'auth/invalid-email') {
     return 'Enter a valid email address.'
+  }
+
+  if (code === 'auth/too-many-requests') {
+    return 'Too many reset attempts. Please wait a few minutes and try again.'
+  }
+
+  if (code === 'auth/network-request-failed') {
+    return 'Network error. Please check your internet connection and try again.'
+  }
+
+  if (code === 'auth/unauthorized-continue-uri') {
+    return 'This app domain is not authorized in Firebase Authentication settings.'
   }
 
   return 'Unable to send password reset email. Please try again.'
