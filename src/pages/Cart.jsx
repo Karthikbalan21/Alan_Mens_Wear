@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { FiCheckCircle, FiDownload, FiFileText, FiMinus, FiPlus, FiShoppingBag, FiTrash2, FiUploadCloud } from 'react-icons/fi'
+import { FiCheckCircle, FiFileText, FiMinus, FiPlus, FiShoppingBag, FiTrash2, FiUploadCloud } from 'react-icons/fi'
 import { HiSparkles } from 'react-icons/hi2'
 import { toast } from 'react-toastify'
 import { useAuth } from '../context/useAuth'
 import { useCart } from '../context/useCart'
-import { downloadInvoice } from '../services/invoiceService'
 import { placeOrder, uploadPaymentScreenshot } from '../services/orderService'
 import { getProducts } from '../services/productService'
 
@@ -20,7 +19,6 @@ function Cart() {
   const [paymentScreenshot, setPaymentScreenshot] = useState(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [upiQrCode, setUpiQrCode] = useState('')
-  const [latestOrder, setLatestOrder] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const { currentUser, userProfile } = useAuth()
@@ -89,7 +87,6 @@ function Cart() {
     setPlacingOrder(true)
     setMessage('')
     setError('')
-    setLatestOrder(null)
 
     try {
       if (!currentUser) {
@@ -106,13 +103,11 @@ function Cart() {
       )
       toast.success('Payment proof uploaded.')
 
-      const order = await placeOrder(cartItems, paymentProof, currentUser, userProfile)
+      await placeOrder(cartItems, paymentProof, currentUser, userProfile)
       await clearCart()
       setPaymentScreenshot(null)
       setUploadProgress(0)
-      setLatestOrder(order)
-      downloadInvoice(order)
-      setMessage('Order placed successfully. Track status from My Orders.')
+      setMessage('Order placed successfully. Track status from My Orders. Invoice download unlocks after delivery feedback.')
       toast.success('Order placed successfully.')
     } catch (orderError) {
       setError(orderError.message)
@@ -177,16 +172,6 @@ function Cart() {
 
       {message && <p className="success-message">{message}</p>}
       {(error || cartError) && <p className="error-box">{error || cartError}</p>}
-      {latestOrder && (
-        <button
-          className="btn primary invoice-download-btn"
-          type="button"
-          onClick={() => downloadInvoice(latestOrder)}
-        >
-          <FiDownload aria-hidden="true" />
-          Download Invoice
-        </button>
-      )}
 
       {loading ? (
         <div className="empty-state">

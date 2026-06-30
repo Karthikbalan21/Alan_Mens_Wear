@@ -187,10 +187,16 @@ export async function updateOrderStatus(orderId, status) {
     throw new Error('Invalid order status.')
   }
 
-  await updateDoc(doc(db, 'orders', orderId), {
+  const updatePayload = {
     status,
     updatedAt: serverTimestamp(),
-  })
+  }
+
+  if (status === 'Delivered') {
+    updatePayload['payment.verificationStatus'] = 'verified'
+  }
+
+  await updateDoc(doc(db, 'orders', orderId), updatePayload)
 }
 
 export async function updatePaymentVerificationStatus(orderId, verificationStatus) {

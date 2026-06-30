@@ -13,6 +13,14 @@ function formatOrderDate(order) {
   return date ? date.toLocaleDateString('en-IN') : 'Pending'
 }
 
+function getItemReviewId(item) {
+  return item.productId || item.id
+}
+
+function getReviewKey(order, item) {
+  return `${order.id}-${getItemReviewId(item)}`
+}
+
 function Orders() {
   const { currentUser } = useAuth()
   const [orders, setOrders] = useState([])
@@ -62,6 +70,12 @@ function Orders() {
     [reviews],
   )
 
+  const canDownloadInvoice = (order) => (
+    order.status === 'Delivered'
+    && order.items?.length > 0
+    && order.items.every((item) => reviewedKeys.has(getReviewKey(order, item)))
+  )
+
   if (!currentUser) {
     return (
       <section className="container page-section centered">
@@ -101,6 +115,20 @@ function Orders() {
     } finally {
       setSavingReview(false)
     }
+  }
+
+  const handleInvoiceDownload = (order) => {
+    if (order.status !== 'Delivered') {
+      toast.info('Invoice download is available after your order is delivered and reviewed.')
+      return
+    }
+
+    if (!canDownloadInvoice(order)) {
+      toast.info('Please submit feedback and rating for every product before downloading the invoice.')
+      return
+    }
+
+    downloadInvoice(order)
   }
 
   return (
@@ -146,7 +174,7 @@ function Orders() {
 
               <ul className="order-items detailed-order-items">
                 {order.items?.map((item) => {
-                  const reviewKey = `${order.id}-${item.productId}`
+                  const reviewKey = getReviewKey(order, item)
                   const canReview = order.status === 'Delivered' && !reviewedKeys.has(reviewKey)
 
                   return (
@@ -194,9 +222,14 @@ function Orders() {
               </ul>
 
               <div className="order-actions">
-                <button className="btn small" type="button" onClick={() => downloadInvoice(order)}>
+                <button
+                  className="btn small"
+                  type="button"
+                  onClick={() => handleInvoiceDownload(order)}
+                  title="Submit delivery feedback and ratings before downloading the invoice"
+                >
                   <FiDownload aria-hidden="true" />
-                  View Details
+                  Download Invoice
                 </button>
                 <button className="btn small" type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                   <FiNavigation aria-hidden="true" />
